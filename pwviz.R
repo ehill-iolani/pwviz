@@ -606,8 +606,8 @@ server <- function(input, output, session) {
         geom_point() +
         geom_smooth(aes(group = 1), color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("HSIBI values through time", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("HSIBI values through time by", input$site_a, sep = " ")},
+        labs(title = if (input$site_a == "All") {paste("HSIBI values through time of", input$stream_a, "stream(s)", sep = " ")}
+          else {paste("HSIBI values through time of", input$site_a, sep = " ")},
              x = "Date",
              y = "HSIBI",
              color = "Stream") +
@@ -623,7 +623,7 @@ server <- function(input, output, session) {
         geom_smooth(color = "black") +
         scale_color_manual(values = pwpalette) +
         labs(title = if (input$site_a == "All") {paste("Number of native species collected through time in", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("Number of native species collected through time by", input$site_a, sep = " ")},
+          else {paste("Number of native species collected through time at", input$site_a, sep = " ")},
              x = "Date",
              y = "Count",
              color = "Stream") +
@@ -638,8 +638,8 @@ server <- function(input, output, session) {
         geom_point(color = "red") +
         geom_smooth(color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("Number of non-native species collected through time", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("Number of non-native species collected through time by", input$site_a, sep = " ")},
+        labs(title = if (input$site_a == "All") {paste("Number of non-native species collected through time in", input$stream_a, "stream(s)", sep = " ")}
+          else {paste("Number of non-native species collected through time at", input$site_a, sep = " ")},
              x = "Date",
              y = "Count",
              color = "Stream") +

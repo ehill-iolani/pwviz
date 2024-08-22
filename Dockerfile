@@ -11,7 +11,7 @@ RUN apt update
 RUN apt install -y curl git wget nano
 
 # Install R packages
-RUN R -e "install.packages(c('ggplot2', 'dplyr', 'stringr', 'plotly', 'shinydashboard', 'DT', 'htmlwidgets', 'leaflet'))"
+RUN R -e "install.packages(c('ggplot2', 'dplyr', 'stringr', 'plotly', 'shinydashboard', 'DT', 'htmlwidgets', 'leaflet', 'shinyBS'))"
 
 # Copy app to image
 RUN rm -r /srv/shiny-server/*

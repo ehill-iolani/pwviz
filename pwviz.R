@@ -4,6 +4,7 @@ library(dplyr)
 library(stringr)
 library(plotly)
 library(shinydashboard)
+library(shinyBS)
 library(DT)
 library(htmlwidgets)
 library(leaflet)
@@ -116,11 +117,35 @@ ui <- dashboardPage(
             fluidRow(
               valueBoxOutput("invasive", width = 3),
               valueBoxOutput("native", width = 3),
-              valueBoxOutput("hsibi", width = 3),
+              div(id = "hsibi_help",
+                valueBoxOutput("hsibi", width = 3)
+              ),
+              bsTooltip("hsibi", "Click me to learn more!", placement = "top"),
+              bsModal("hsibi_help_modal", "What is HSIBI?", "hsibi_help", size = "large",
+                p(HTML("<b>HSIBI stands for the Hawai'i Stream Index of Biological Integrity.</b><br><br>
+                  The HSIBI utilizes five ecological categories(taxonomic richness, 
+                  sensitive species, reproductive capacity, trophic-habitat capacity, and
+                  tolerance capacity) and 11 metrics to distinguish a stream's biological 
+                  condition on a scale ranging from undisturbed to severely impaired.<br><br>
+                  <b>90 - 100: Excellent</b><br>
+                  <b>79 - 89.9: Good</b><br>
+                  <b>69 - 78.9: Fair</b><br>
+                  <b>40 - 68.9: Poor</b><br>
+                  <b>< 39.9: Impaired</b><br><br>
+                  "))
+              ),
               valueBoxOutput("biomass", width = 3)
             ),
             fluidRow(
-              valueBoxOutput("visits", width = 4),
+              div(id = "visits_help",
+                valueBoxOutput("visits", width = 4)
+              ),
+              bsTooltip("visits", "Click me to learn more!", placement = "top"),
+              bsModal("visits_help_modal", "What is a Paepae survey?", "visits_help", size = "large",
+                p(HTML("<b>A visit is a field survey conducted using the Paepae method.</b><br><br>
+                  Paepae is a fish population survey method that utilizes sound and vibration 
+                  to herd animals downstream to be collected and counted by a the survey team."))
+              ),
               valueBoxOutput("drange", width = 8)
             )
           )
@@ -203,6 +228,14 @@ ui <- dashboardPage(
           box(
             width = 12,
             plotlyOutput("hisibi_plot")
+          ),
+          box(
+            width = 12,
+            plotlyOutput("native_plot")
+          ),
+          box(
+            width = 12,
+            plotlyOutput("nonnative_plot")
           )
         )
       ),
@@ -573,9 +606,42 @@ server <- function(input, output, session) {
         geom_point() +
         geom_smooth(aes(group = 1), color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = "HSIBI values through time",
+        labs(title = if (input$site_a == "All") {paste("HSIBI values through time", input$stream_a, "stream(s)", sep = " ")}
+          else {paste("HSIBI values through time by", input$site_a, sep = " ")},
              x = "Date",
              y = "HSIBI",
+             color = "Stream") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    )
+  })
+
+  # Plot trends of native species through time
+  output$native_plot <- renderPlotly({
+    ggplotly(ggplot(ldat_site(), aes(x = Date, y = `Native (count)`)) +
+        geom_point(color = "cyan") +
+        geom_smooth(color = "black") +
+        scale_color_manual(values = pwpalette) +
+        labs(title = if (input$site_a == "All") {paste("Number of native species collected through time in", input$stream_a, "stream(s)", sep = " ")}
+          else {paste("Number of native species collected through time by", input$site_a, sep = " ")},
+             x = "Date",
+             y = "Count",
+             color = "Stream") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    )
+  })
+
+  # Plot trends of non-native species through time
+  output$nonnative_plot <- renderPlotly({
+    ggplotly(ggplot(ldat_site(), aes(x = Date, y = `Non-native (count)`)) +
+        geom_point(color = "red") +
+        geom_smooth(color = "black") +
+        scale_color_manual(values = pwpalette) +
+        labs(title = if (input$site_a == "All") {paste("Number of non-native species collected through time", input$stream_a, "stream(s)", sep = " ")}
+          else {paste("Number of non-native species collected through time by", input$site_a, sep = " ")},
+             x = "Date",
+             y = "Count",
              color = "Stream") +
         theme_classic() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -654,7 +720,8 @@ server <- function(input, output, session) {
         geom_point() +
         geom_smooth(color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = "Number of native species collected through time",
+        labs(title = if (input$organ_a == "All") {paste("Number of native species collected through time by", input$organ_cat, sep = " ")} 
+          else {paste("Number of native species collected through time by", input$organ_a, sep = " ")},
              x = "Date",
              y = "Count",
              color = "Stream") +
@@ -669,7 +736,8 @@ server <- function(input, output, session) {
         geom_point() +
         geom_smooth(color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = "Number of non-native species collected through time",
+        labs(title = if (input$organ_a == "All") {paste("Number of non-native species collected through time by", input$organ_cat, sep = " ")}
+          else {paste("Number of non-native species collected through time by", input$organ_a, sep = " ")},
              x = "Date",
              y = "Count",
              color = "Stream") +
@@ -684,7 +752,8 @@ server <- function(input, output, session) {
         geom_point() +
         geom_smooth(color = "black") +
         scale_color_manual(values = pwpalette) +
-        labs(title = "Biomass removed through time",
+        labs(title = if (input$organ_a == "All") {paste("Biomass collected through time by", input$organ_cat, sep = " ")}
+            else {paste("Biomass collected through time by", input$organ_a, sep = " ")},
              x = "Date",
              y = "Biomass (lbs)",
              color = "Stream") +

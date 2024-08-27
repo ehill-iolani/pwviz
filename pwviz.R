@@ -56,7 +56,7 @@ sdat[1, 2] <- "Ala Wai Canal"
 sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
 sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
 sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa", "Nuuanu")), ]
-pwpalette <- c("Makiki" = "blue", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "yellow")
+pwpalette <- c("Makiki" = "blue", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "#FFDE21")
 color_palette <- colorFactor(palette = pwpalette, domain = sdat$Stream)
 
 # Restrict survey data to only paepae
@@ -175,9 +175,15 @@ ui <- dashboardPage(
               )
             )
           ),
-          box(
-            width = 12,
-            plotlyOutput("speciesplot"),
+          tags$style(HTML("
+            .irs-grid-text {
+              font-size: 12px !important;
+            }
+            .irs-min, .irs-max, .irs-from, .irs-to, .irs-single {
+              font-size: 12px !important;
+            }
+          ")),
+          box(width = 12,
             sliderInput("yearRange", "Select Year Range:",
               min = as.numeric(format(min(ldat$Date), "%Y")),
               max = as.numeric(format(max(ldat$Date), "%Y")),
@@ -188,7 +194,15 @@ ui <- dashboardPage(
           ),
           box(
             width = 12,
+            plotlyOutput("speciesplot")
+          ),
+          box(
+            width = 12,
             plotlyOutput("speciesbarchart")
+          ),
+          box(
+            width = 12,
+            plotlyOutput("speciesbarchart2")
           ),
           box(
             title = "Counts by Date and Organization",
@@ -227,7 +241,14 @@ ui <- dashboardPage(
           ),
           box(
             width = 12,
-            plotlyOutput("hisibi_plot")
+            plotlyOutput("hisibi_plot"),
+            sliderInput("yearRange", "Select Year Range:",
+              min = as.numeric(format(min(ldat$Date), "%Y")),
+              max = as.numeric(format(max(ldat$Date), "%Y")),
+              value = c(as.numeric(format(min(ldat$Date), "%Y")), as.numeric(format(max(ldat$Date), "%Y"))),
+              step = 1,
+              sep = ""
+            )
           ),
           box(
             width = 12,
@@ -250,7 +271,7 @@ ui <- dashboardPage(
                 title = "Select an Organization",
                 selectInput(
                   inputId = "organ_cat",
-                  label = "Select an organization catagory:",
+                  label = "Select an organization category:",
                   choices = c("All", sort(as.character(unique(odat$`Organization Classification`)))),
                   selected = "All"
                 )
@@ -340,7 +361,7 @@ server <- function(input, output, session) {
           Invasive = sum(`Non-native (count)`),
           Native = sum(`Native (count)`),
           HSIBI = round(mean(HSIBI, na.rm = TRUE), digits = 4),
-          biomass = round(mean(Biomass, na.rm = TRUE), digits = 4),
+          biomass = round(sum(Biomass, na.rm = TRUE), digits = 4),
           visits = nrow(ldat[ldat$`Stream (from Site)` == input$stream, ]),
           drange = paste(range(`Date`, na.rm = TRUE)[1], range(`Date`, na.rm = TRUE)[2], sep = " to ")
         )
@@ -496,17 +517,41 @@ server <- function(input, output, session) {
   spyeardat2 <- reactive({
     spyeardat() %>%
       mutate(Year = format(Date, "%Y")) %>%
-      group_by(Year) %>%
+      group_by(Year, `Stream (from Site)`) %>%
       summarise(Count = sum(get(paste(input$specieslist, "(count)", sep = " "))))
   })
 
   # Render barchart of counts by year
   output$speciesbarchart <- renderPlotly({
-    ggplotly(ggplot(spyeardat2(), aes(x = Year, y = Count)) +
+    ggplotly(ggplot(spyeardat2(), aes(x = Year, y = Count, fill = as.character(`Stream (from Site)`))) +
         geom_bar(stat = "identity") +
+        scale_fill_manual(values = pwpalette) +
         labs(title = paste("Number of", input$specieslist, "collected by year"),
              x = "Year",
-             y = paste(input$specieslist, "count", sep = " ")) +
+             y = paste(input$specieslist, "count", sep = " "),
+             fill = "Stream") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    )
+  })
+
+  # Take a mean of the counts by the number of visits
+  spyeardat3 <- reactive({
+    spyeardat() %>%
+      mutate(Year = format(Date, "%Y")) %>%
+      group_by(Year, `Stream (from Site)`) %>%
+      summarise(Count = mean(get(paste(input$specieslist, "(count)", sep = " "))))
+  })
+
+  # Render mean of counts by visits as a barchart
+  output$speciesbarchart2 <- renderPlotly({
+    ggplotly(ggplot(spyeardat3(), aes(x = Year, y = round(Count, digits = 0), fill = as.character(`Stream (from Site)`))) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = pwpalette) +
+        labs(title = paste("Average number of", input$specieslist, "collected per survey"),
+             x = "Year",
+             y = paste(input$specieslist, "count", sep = " "),
+             fill = "Stream") +
         theme_classic() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     )

@@ -34,18 +34,23 @@ if (Sys.getenv("AIRTABLE_SITEDB_NAME") == "")
 if (Sys.getenv("AIRTABLE_ORGANIZATIONDB_NAME") == "")
   print("Organization table name not found") else print("Organization table name found")
 
+if (Sys.getenv("AIRTABLE_FISHDB_NAME") == "")
+  print("Fish table name not found") else print("Fish table name found")
+
 # Pulls data from Airtable
 key <- Sys.getenv("AIRTABLE_API_KEY")
 base <- Sys.getenv("AIRTABLE_BASE_NAME")
 l3_table_name <- Sys.getenv("AIRTABLE_L3DB_NAME")
 site_table_name <- Sys.getenv("AIRTABLE_SITEDB_NAME")
 organziation_table_name <- Sys.getenv("AIRTABLE_ORGANIZATIONDB_NAME")
+fish_table_name <- Sys.getenv("AIRTABLE_FISHDB_NAME")
 key <- Sys.getenv("AIRTABLE_API_KEY")
 record_id <- NULL
 
 ldat <- get_airtable_records(base, l3_table_name, key, record_id)
 sdat <- get_airtable_records(base, site_table_name, key, record_id)
 odat <- get_airtable_records(base, organziation_table_name, key, record_id)
+fdat <- get_airtable_records(base, fish_table_name, key, record_id)
 
 #####################
 ### DATA CLEANING ###
@@ -634,15 +639,19 @@ server <- function(input, output, session) {
 
   # Filter ldat based on site selection
   ldat_site <- reactive({
-    if (input$stream_a == "All") {
-      ldat
-    } else if (input$site_a == "All") {
-      ldat %>%
-        filter(`Stream (from Site)` %in% sdat$Stream[sdat$Stream == input$stream_a])
-    } else {
-      ldat %>%
-        filter(`Site (from Site)` == input$site_a, `Stream (from Site)` == input$stream_a)
+    filtered_data <- ldat
+    if (input$stream_a != "All") {
+      filtered_data <- filtered_data %>%
+        filter(`Stream (from Site)` == input$stream_a)
     }
+    if (input$site_a != "All") {
+      filtered_data <- filtered_data %>%
+        filter(`Site (from Site)` == input$site_a)
+    }
+    filtered_data <- filtered_data %>%
+      filter(Date >= as.Date(paste(input$yearRange[1], "-01-01", sep = "")) &
+             Date <= as.Date(paste(input$yearRange[2], "-12-31", sep = "")))
+    return(filtered_data)
   })
 
   # Plot the HISIBI values for the selected site through time
@@ -660,6 +669,7 @@ server <- function(input, output, session) {
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     )
   })
+
 
   # Plot trends of native species through time
   output$native_plot <- renderPlotly({

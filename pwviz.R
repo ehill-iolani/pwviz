@@ -8,6 +8,7 @@ library(shinyBS)
 library(DT)
 library(htmlwidgets)
 library(leaflet)
+library(tidyr)
 
 ####################
 ### Pulling data ###
@@ -60,7 +61,8 @@ sdat <- sdat[, c(2, 3, 5, 7, 8)]
 sdat[1, 2] <- "Ala Wai Canal"
 sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
 sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
-sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa", "Nuuanu")), ]
+sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa",
+              "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo")), ]
 pwpalette <- c("Makiki" = "blue", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "#FFDE21")
 color_palette <- colorFactor(palette = pwpalette, domain = sdat$Stream)
 
@@ -70,6 +72,9 @@ ldat <- ldat %>%
 
 # Format the date column in ldat
 ldat$Date <- as.Date(ldat$Date)
+
+# Add year column to ldat
+ldat$Year <- format(ldat$Date, "%Y")
 
 # Remove surveys from Ala Wai Canal, Pauoa, and Nuuanu
 ldat <- ldat[!(ldat$`Stream (from Site)` %in% c("Ala Wai Canal", "Pauoa", "Nuuanu")), ]
@@ -94,7 +99,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Paepae O Waikolu at a glance", tabName = "summary"),
       menuItem("Species analysis", tabName = "speciesa"),
-      menuItem("Site analysis", tabName = "sitea"),
+      menuItem("Sites through time", tabName = "sitethrutime"),
       menuItem("Organization analysis", tabName = "organa")
     )
   ),
@@ -216,55 +221,6 @@ ui <- dashboardPage(
           )
         )
       ),
-      tabItem(tabName = "sitea",
-        fluidRow(
-          box(
-            width = 12,
-            title = "Site Analysis",
-            fluidRow(
-              column(
-                width = 9,
-                title = "Site Map",
-                leafletOutput("site_map")
-              ),
-              column(
-                width = 3,
-                title = "Select a stream",
-                selectInput(
-                  inputId = "stream_a",
-                  label = "Select a stream:",
-                  choices = c("All", sort(as.character(unique(sdat$Stream)))),
-                  selected = "All"
-                )
-              ),
-              column(
-                width = 3,
-                title = "Select a site",
-                uiOutput("site_a")
-              )
-            )
-          ),
-          box(
-            width = 12,
-            plotlyOutput("hisibi_plot"),
-            sliderInput("yearRange", "Select Year Range:",
-              min = as.numeric(format(min(ldat$Date), "%Y")),
-              max = as.numeric(format(max(ldat$Date), "%Y")),
-              value = c(as.numeric(format(min(ldat$Date), "%Y")), as.numeric(format(max(ldat$Date), "%Y"))),
-              step = 1,
-              sep = ""
-            )
-          ),
-          box(
-            width = 12,
-            plotlyOutput("native_plot")
-          ),
-          box(
-            width = 12,
-            plotlyOutput("nonnative_plot")
-          )
-        )
-      ),
       tabItem(tabName = "organa",
         fluidRow(
           box(
@@ -307,6 +263,84 @@ ui <- dashboardPage(
           box(
             width = 12,
             plotlyOutput("org_biomass")
+          )
+        )
+      ),
+      tabItem(tabName = "sitethrutime",
+        fluidRow(
+          box(
+            width = 12,
+            title = "Site Trends Over Time",
+            fluidRow(
+              column(
+                width = 9,
+                title = "Site Map",
+                leafletOutput("site_map")
+              ),
+              column(
+                width = 3,
+                title = "Select a stream",
+                selectInput(
+                  inputId = "stream_a",
+                  label = "Select a stream:",
+                  choices = c("All", sort(as.character(unique(sdat$Stream)), decreasing = TRUE)),
+                  selected = "All"
+                )
+              ),
+              column(
+                width = 3,
+                title = "Select a site",
+                uiOutput("site_a")
+              )
+            )
+          ),
+          box(
+            width = 12,
+            plotlyOutput("site_trends")
+          ),
+          box(
+            width = 12,
+            plotlyOutput("native_non_native_trends")
+          ),
+          box(
+            width = 12,
+            plotlyOutput("hsibi_trends")
+          ),
+          box(
+            width = 12,
+            title = "Site Data Table",
+            fluidRow(
+              column(
+                width = 2,
+                selectInput(
+                  inputId = "yearselect",
+                  label = "Select a year:",
+                  choices = c("All", sort(as.character(unique(ldat$Year)), decreasing = TRUE))
+                )
+              ),
+              column(
+                width = 5,
+                title = "Select an organization:",
+                uiOutput("organ_b")
+              ),
+              column(
+                width = 5,
+                title = "Select a survey date:",
+                uiOutput("l3")
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                dataTableOutput("site_data")
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                downloadButton("downloadData", "Download Data")
+              )
+            )
           )
         )
       )
@@ -637,8 +671,21 @@ server <- function(input, output, session) {
     site_map()
   })
 
+  ########################
+  ### Site trends page ###
+  ########################
+  # Create site selection based on stream selection
+  output$site_a <- renderUI({
+    selectInput(
+      inputId = "site_a",
+      label = "Select a site:",
+      choices = c("All", sort(as.character(unique(sdat$Site[sdat$Stream == input$stream_a])))),
+      selected = "All"
+    )
+  })
+
   # Filter ldat based on site selection
-  ldat_site <- reactive({
+  ldat_site2 <- reactive({
     filtered_data <- ldat
     if (input$stream_a != "All") {
       filtered_data <- filtered_data %>%
@@ -654,54 +701,146 @@ server <- function(input, output, session) {
     return(filtered_data)
   })
 
-  # Plot the HISIBI values for the selected site through time
-  output$hisibi_plot <- renderPlotly({
-    ggplotly(ggplot(ldat_site(), aes(x = Date, y = HSIBI, color = as.character(`Stream (from Site)`))) +
-        geom_point() +
-        geom_smooth(aes(group = 1), color = "black") +
-        scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("HSIBI values through time of", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("HSIBI values through time of", input$site_a, sep = " ")},
-             x = "Date",
-             y = "HSIBI",
-             color = "Stream") +
-        theme_classic() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Filter ldat to only include the date, HSIBI, site, stream and columns with "(count)"
+  ldat_site_filtered <- reactive({
+    ldat_site2() %>%
+      select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
+      pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
+                   names_to = "Species", values_to = "Count") %>%
+      mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
+      filter(!is.na(Count) & Count > 0) %>%
+      filter(!Species %in% c("Total", "Native", "Non-native"))
+  })
+
+  # Create plot for each species count through time at the selected site
+  output$site_trends <- renderPlotly({
+    ggplotly(ggplot(ldat_site_filtered(), aes(x = Date, y = Count, color = Species)) +
+      geom_point() +
+      geom_line(aes(group = Species), se = FALSE) +
+      labs(title = "Counts by Species Through Time",
+           x = "Date",
+           y = "Count",
+           color = "Species") +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
     )
   })
 
+  # Remake ldat_site_filtered2 to include only native and non-native species
+  ldat_site_filtered2 <- reactive({
+    ldat_site2() %>%
+      select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
+      pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
+                   names_to = "Origin", values_to = "Count") %>%
+      mutate(Origin = gsub(" \\(count\\)", "", Origin)) %>%
+      filter(!is.na(Count) & Count > 0) %>%
+      filter(Origin %in% c("Native", "Non-native")) %>%
+      # Convert origin to percent of total count
+      group_by(Date, `Site (from Site)`, `Stream (from Site)`, Origin) %>%
+      summarise(Count = sum(Count, na.rm = TRUE)) %>%
+      mutate(Percent = Count / sum(Count) * 100)
+  })
 
-  # Plot trends of native species through time
-  output$native_plot <- renderPlotly({
-    ggplotly(ggplot(ldat_site(), aes(x = Date, y = `Native (count)`)) +
-        geom_point(color = "cyan") +
-        geom_smooth(color = "black") +
-        scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("Number of native species collected through time in", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("Number of native species collected through time at", input$site_a, sep = " ")},
-             x = "Date",
-             y = "Count",
-             color = "Stream") +
-        theme_classic() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Create plot for native vs non-native species through time at the selected site
+  output$native_non_native_trends <- renderPlotly({
+    ggplotly(ggplot(ldat_site_filtered2(), aes(x = Date, y = Percent, color = Origin)) +
+      geom_point() +
+      geom_line(aes(group = Origin), se = FALSE) +
+      labs(title = "Native vs Non-Native Percentages Through Time",
+           x = "Date",
+           y = "Percentage of Total Count",
+           color = "Origin") +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
     )
   })
 
-  # Plot trends of non-native species through time
-  output$nonnative_plot <- renderPlotly({
-    ggplotly(ggplot(ldat_site(), aes(x = Date, y = `Non-native (count)`)) +
-        geom_point(color = "red") +
-        geom_smooth(color = "black") +
-        scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("Number of non-native species collected through time in", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("Number of non-native species collected through time at", input$site_a, sep = " ")},
-             x = "Date",
-             y = "Count",
-             color = "Stream") +
-        theme_classic() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Create plot for HSIBI through time at the selected site
+  hdat <- reactive({
+    ldat_site_filtered() %>%
+      group_by(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`) %>%
+      distinct() %>%
+      # convert stream to factor
+      mutate(`Stream (from Site)` = as.factor(`Stream (from Site)`))
+  })
+
+  # Create HSIBI trends plot
+  output$hsibi_trends <- renderPlotly({
+    ggplotly(ggplot(hdat(), aes(x = Date, y = HSIBI, color = `Stream (from Site)`)) +
+      geom_point() +
+      geom_smooth(aes(group = 1), color = "black") +
+      scale_color_manual(values = pwpalette) +
+      labs(title = if (input$site_a == "All") {paste("HSIBI trends through time for", input$stream_a, "stream(s)", sep = " ")}
+        else {paste("HSIBI trends through time for", input$site_a, sep = " ")},
+           x = "Date",
+           y = "HSIBI",
+           color = "Stream") +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
     )
   })
+
+  # Create organization selection based on organization category selection
+  output$organ_b <- renderUI({
+    selectInput(
+      inputId = "organ_b",
+      label = "Select an organization:",
+      choices = sort(as.character(unique(ldat$`Organization (from Organization)`[ldat$Year == input$yearselect]))),
+      selected = NULL
+    )
+  })
+
+  # Create survey date selection based on year selection
+  output$l3 <- renderUI({
+    selectInput(
+      inputId = "survey_date",
+      label = "Select a survey date:",
+      choices = sort(as.character(unique(ldat$Date[ldat$Year == input$yearselect & ldat$`Organization (from Organization)` == input$organ_b]))),
+      selected = NULL
+    )
+  })
+
+  # Create table for ldat based on year, organization, and survey date selection
+  ldat_year_org <- reactive({
+    if (input$yearselect == "All") {
+      ldat
+    } else {
+      ldat %>%
+        filter(Year == input$yearselect & `Organization (from Organization)` == input$organ_b & Date == input$survey_date)
+    }
+  })
+
+  # Filtered ldat_year_org for site data table
+  ldat_year_org_filt <- reactive({
+    ldat_year_org() %>%
+      select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
+      pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
+                   names_to = "Species", values_to = "Count") %>%
+      mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
+      filter(!is.na(Count) & Count > 0) %>%
+      # Make Stream (from Stream) a factor
+      mutate(`Stream (from Site)` = as.factor(`Stream (from Site)`)) %>%
+      mutate(`Site (from Site)` = as.factor(`Site (from Site)`))
+  })
+
+  # Render ldat_year_org_filt as a data table
+  output$site_data <- DT::renderDataTable({
+    DT::datatable(ldat_year_org_filt(), options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE)
+  })
+
+  # Download handler for the data table
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("site_data_",
+            unique(ldat_year_org_filt()$`Stream (from Site)`), "_",
+            unique(ldat_year_org_filt()$`Site (from Site)`), "_",
+            unique(ldat_year_org_filt()$Date),
+            ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(as.data.frame(ldat_year_org_filt()), file, row.names = FALSE, quote = FALSE)
+    }
+  )
 
   #########################
   ### Organization page ###

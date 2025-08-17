@@ -62,7 +62,7 @@ sdat[1, 2] <- "Ala Wai Canal"
 sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
 sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
 sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa",
-              "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo")), ]
+              "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo", "Kalihi")), ]
 pwpalette <- c("Makiki" = "blue", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "#FFDE21")
 color_palette <- colorFactor(palette = pwpalette, domain = sdat$Stream)
 

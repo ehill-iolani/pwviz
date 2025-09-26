@@ -614,9 +614,9 @@ server <- function(input, output, session) {
     DT::datatable(dcsdat())
   })
 
-  #################
-  ### Site page ###
-  #################
+  ########################
+  ### Site trends page ###
+  ########################
   # Create site selection based on stream selection
   output$site_a <- renderUI({
     selectInput(
@@ -669,19 +669,6 @@ server <- function(input, output, session) {
   # Render the site map
   output$site_map <- renderLeaflet({
     site_map()
-  })
-
-  ########################
-  ### Site trends page ###
-  ########################
-  # Create site selection based on stream selection
-  output$site_a <- renderUI({
-    selectInput(
-      inputId = "site_a",
-      label = "Select a site:",
-      choices = c("All", sort(as.character(unique(sdat$Site[sdat$Stream == input$stream_a])))),
-      selected = "All"
-    )
   })
 
   # Filter ldat based on site selection
@@ -829,18 +816,17 @@ server <- function(input, output, session) {
   })
 
   # Download handler for the data table
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste("site_data_",
-            unique(ldat_year_org_filt()$`Stream (from Site)`), "_",
-            unique(ldat_year_org_filt()$`Site (from Site)`), "_",
-            unique(ldat_year_org_filt()$Date),
-            ".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(as.data.frame(ldat_year_org_filt()), file, row.names = FALSE, quote = FALSE)
-    }
-  )
+  output$downloadData <- downloadHandler(filename = function() {
+    paste("site_data_",
+          unique(ldat_year_org_filt()$`Stream (from Site)`), "_",
+          unique(ldat_year_org_filt()$`Site (from Site)`), "_",
+          unique(ldat_year_org_filt()$Date),
+          ".csv", sep = "")
+  },
+  content = function(file) {
+    write.csv(as.data.frame(ldat_year_org_filt()),
+              file, row.names = FALSE, quote = FALSE)
+  })
 
   #########################
   ### Organization page ###

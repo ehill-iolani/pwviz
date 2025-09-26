@@ -1,4 +1,4 @@
-# PWviz
+# PWViz
 This repository hosts the code and resources behind the Paepae O Waikolu data-visualization dashboard, built to support the ʻIolani School Office of Community Science. The dashboard helps educators, students, scientists, and the public explore, analyze, and communicate patterns in Hawaiʻi’s stream biodiversity data.
 
 To visit the dashboard, follow the link below:
@@ -6,12 +6,11 @@ https://pwviz-repo-deploy-157052427026.europe-west1.run.app
 
 ## Project Context & Motivation
 
-The Paepae O Waikolu (ʻĀina-Informatics / Stream Biodiversity) initiative is a collaborative effort between ʻIolani School and the University of Hawaiʻi’s Center for Conservation Research and Training (UH-CCRT), aimed at engaging K–12 students and the broader community in monitoring and understanding Hawaiʻi’s freshwater ecosystems. 
-ʻIolani Community Science
+Paepae O Waikolu is a collaborative effort between ʻIolani School and the University of Hawaiʻi’s Center for Conservation Research and Training (UH-CCRT), aimed at engaging K–12 students and the broader community in monitoring and understanding Hawaiʻi’s freshwater ecosystems. 
 
 Through hands-on field protocols, classroom curriculum, and data collection, participating schools monitor native and invasive aquatic species across multiple study sites. The resulting dataset is designed to support scientific inquiry, environmental education, and stewardship of Hawaiʻi’s delicate watershed systems.
 
-The pwviz dashboard offers an interactive interface to make those data more accessible and interpretable, enabling users to:
+PWViz offers an interactive interface to make those data more accessible and interpretable, enabling users to:
 
 - Visualize species abundance, diversity, trends over time, and spatial patterns
 

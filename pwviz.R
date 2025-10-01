@@ -18,7 +18,6 @@ readRenviron("~")
 
 # Source the helper functions
 source("get_airtable_records.R", local = TRUE)
-# source("./pages/summary_tab/summary_map.R")
 
 # Verifies the all the necessary environment variables are set
 if (Sys.getenv("AIRTABLE_API_KEY") == "")

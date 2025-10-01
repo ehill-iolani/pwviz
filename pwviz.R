@@ -13,84 +13,22 @@ library(tidyr)
 ####################
 ### Pulling data ###
 ####################
+
 # Read in the API key, basename, and table name from the .Renviron file
 readRenviron("~")
 
 # Source the helper functions
-source("get_airtable_records.R", local = TRUE)
+source("functions/get_airtable_records.R", local = TRUE)
 
-# Verifies the all the necessary environment variables are set
-if (Sys.getenv("AIRTABLE_API_KEY") == "")
-  print("API key not found") else print("API key found")
-
-if (Sys.getenv("AIRTABLE_BASE_NAME") == "")
-  print("Base name not found") else print("Base name found")
-
-if (Sys.getenv("AIRTABLE_L3DB_NAME") == "")
-  print("Lesson 3 table name not found") else print("Lesson 3 table name found")
-
-if (Sys.getenv("AIRTABLE_SITEDB_NAME") == "")
-  print("Site table name not found") else print("Site table name found")
-
-if (Sys.getenv("AIRTABLE_ORGANIZATIONDB_NAME") == "")
-  print("Organization table name not found") else print("Organization table name found")
-
-if (Sys.getenv("AIRTABLE_FISHDB_NAME") == "")
-  print("Fish table name not found") else print("Fish table name found")
-
-# Pulls data from Airtable
-key <- Sys.getenv("AIRTABLE_API_KEY")
-base <- Sys.getenv("AIRTABLE_BASE_NAME")
-l3_table_name <- Sys.getenv("AIRTABLE_L3DB_NAME")
-site_table_name <- Sys.getenv("AIRTABLE_SITEDB_NAME")
-organziation_table_name <- Sys.getenv("AIRTABLE_ORGANIZATIONDB_NAME")
-fish_table_name <- Sys.getenv("AIRTABLE_FISHDB_NAME")
-key <- Sys.getenv("AIRTABLE_API_KEY")
-record_id <- NULL
-
-ldat <- get_airtable_records(base, l3_table_name, key, record_id)
-sdat <- get_airtable_records(base, site_table_name, key, record_id)
-odat <- get_airtable_records(base, organziation_table_name, key, record_id)
-fdat <- get_airtable_records(base, fish_table_name, key, record_id)
+# Source the data ingest script to pull data from Airtable
+source("data_processing/data_ingest.R", local = TRUE)
 
 #####################
 ### DATA CLEANING ###
 #####################
-# Clean the imported site data
-sdat <- sdat[, c(2, 3, 5, 7, 8)]
-sdat[1, 2] <- "Ala Wai Canal"
-sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
-sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
-sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa",
-              "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo", "Kalihi")), ]
-pwpalette <- c("Makiki" = "blue", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "#FFDE21")
-color_palette <- colorFactor(palette = pwpalette, domain = sdat$Stream)
 
-# Restrict survey data to only paepae
-ldat <- ldat %>%
-  filter(ldat$`Survey type` == "Paepae")
-
-# Remove Kalihi stream surveys
-ldat <- ldat %>%
-  filter(!(ldat$`Stream (from Site)` %in% c("Kalihi")))
-
-# Format the date column in ldat
-ldat$Date <- as.Date(ldat$Date)
-
-# Add year column to ldat
-ldat$Year <- format(ldat$Date, "%Y")
-
-# Remove surveys from Ala Wai Canal, Pauoa, and Nuuanu
-ldat <- ldat[!(ldat$`Stream (from Site)` %in% c("Ala Wai Canal", "Pauoa", "Nuuanu")), ]
-
-# Retrive species names from column names
-species <- colnames(ldat)[grep("(count)", colnames(ldat))]
-speciesl <- gsub(" \\(count\\)", "", species)
-speciesl <- speciesl[speciesl != "Native" & speciesl != "Non-native" & speciesl != "Total"]
-speciesl <- sort(speciesl)
-
-# Remove organizations with no abbreviation
-odat <- odat[is.na(odat$Abbreviation) == FALSE, ]
+# Source the data cleaning script to clean the pulled data
+source("data_processing/data_cleaning.R", local = TRUE)
 
 #################
 ### APP START ###

@@ -17,8 +17,8 @@ library(tidyr)
 readRenviron("~")
 
 # Source the helper functions
-source("get_airtable_records.R")
-source("./pages/summary_tab/summary_map.R")
+source("get_airtable_records.R", local = TRUE)
+# source("./pages/summary_tab/summary_map.R")
 
 # Verifies the all the necessary environment variables are set
 if (Sys.getenv("AIRTABLE_API_KEY") == "")
@@ -98,13 +98,13 @@ odat <- odat[is.na(odat$Abbreviation) == FALSE, ]
 #################
 
 # Source the summary tab module
-source("modules/summary_tab.R")
+source("modules/summary_tab.R", local = TRUE)
 # Source the species analysis tab module
-source("modules/speciesa_tab.R")
+source("modules/speciesa_tab.R", local = TRUE)
 # Source the sites through time tab module
-source("modules/sitesthrutime_tab.R")
+source("modules/sitesthrutime_tab.R", local = TRUE)
 # Source the organization analysis tab module
-source("modules/organa_tab.R")
+source("modules/organa_tab.R", local = TRUE)
 
 # Define UI for application, homepage is map of sites
 ui <- dashboardPage(

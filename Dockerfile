@@ -17,4 +17,5 @@ RUN R -e "install.packages(c('ggplot2', 'dplyr', 'stringr', 'plotly', 'shinydash
 RUN rm -r /srv/shiny-server/*
 COPY pwviz.R /srv/shiny-server/app.R
 COPY modules/ /srv/shiny-server/modules/
-COPY get_airtable_records.R /srv/shiny-server/get_airtable_records.R
+COPY functions/ /srv/shiny-server/functions/
+COPY data_processing/ /srv/shiny-server/data_processing/

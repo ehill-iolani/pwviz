@@ -15,9 +15,16 @@ mod_species_ui <- function(id) {
           column(
             width = 3,
             selectInput(
-              inputId = ns("specieslist"),
-              label = "Select a species:",
-              choices = speciesl
+              inputId = ns("species1"),
+              label = "Select species 1:",
+              choices = c(speciesl),
+              selected = "Amatitlania nigrofasciata"
+            ),
+            selectInput(
+              inputId = ns("species2"),
+              label = "Select species 2:",
+              choices = c("None", speciesl),
+              selected = "None"
             )
           ),
           column(
@@ -65,13 +72,14 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
     ns <- session$ns
 
     spdat <- reactive({
-      selected_columns <- ldat %>%
-        select(contains(paste(input$specieslist, "(count)", sep = " ")))
-
-      filtered_rows <- ldat %>%
-        filter(rowSums(!is.na(selected_columns)) > 0)
-
-      as.data.frame(filtered_rows)
+      # Use two separate species inputs
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      if (length(selected) == 0) return(ldat[0,])
+      selected_columns <- paste(selected, "(count)", sep = " ")
+      filtered <- ldat %>%
+        filter(rowSums(!is.na(select(., all_of(selected_columns)))) > 0)
+      filtered
     })
 
     spsitedat <- reactive({
@@ -98,30 +106,71 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
     })
 
     spmap <- reactive({
-      leaflet() %>%
-        addProviderTiles("Esri.WorldImagery") %>%
-        addCircleMarkers(
-          data = if (input$site == "All") {
-            sdat[sdat$Site %in% unique(as.character(spsitedat()$`Site (from Site)`)), ]
-          } else {
-            sdat %>%
-              filter(Site == input$site)
-          },
-          lng = ~`Longitude Top`,
-          lat = ~`Latitude Top`,
-          color = ~color_palette(Stream),
-          popup = ~paste("Site: ", Site, "<br/>", "Stream: ", Stream, "<br/>"),
-          opacity = 0.8,
-          fillOpacity = 0.8
-        ) %>%
-        addLegend(
-          data = sdat,
-          position = "bottomright",
-          pal = color_palette,
-          values = ~Stream,
-          title = "Stream",
-          opacity = 0.8
-        )
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      map <- leaflet() %>% addProviderTiles("Esri.WorldImagery")
+      colors <- c("#ff9b9b", "#a5d4f5")
+      both_color <- "#dfc5fe"
+      site_rows <- sdat[sdat$Site %in% unique(as.character(spsitedat()$`Site (from Site)`)), ]
+
+      # If two species are selected, find sites where both exist
+      if (length(selected) == 2) {
+        col1 <- paste(selected[1], "(count)", sep = " ")
+        col2 <- paste(selected[2], "(count)", sep = " ")
+        both_sites <- spsitedat() %>%
+          filter(!is.na(.data[[col1]]) & .data[[col1]] > 0 & !is.na(.data[[col2]]) & .data[[col2]] > 0) %>%
+          pull(`Site (from Site)`) %>% unique()
+        both_site_rows <- site_rows[site_rows$Site %in% both_sites, ]
+        # Add markers for sites with both species
+        if (nrow(both_site_rows) > 0) {
+          map <- map %>% addCircleMarkers(
+            data = both_site_rows,
+            lng = ~`Longitude Top`,
+            lat = ~`Latitude Top`,
+            color = both_color,
+            fillColor = both_color,
+            radius = 7,
+            popup = ~paste("Site: ", Site, "<br/>Species: Both", "<br/>Stream: ", Stream, "<br/>"),
+            opacity = 0.8,
+            fillOpacity = 0.8,
+            group = "Both"
+          )
+        }
+      }
+      # Add markers for each species
+      for (i in seq_along(selected)) {
+        col <- paste(selected[i], "(count)", sep = " ")
+        species_sites <- spsitedat() %>%
+          filter(!is.na(.data[[col]]) & .data[[col]] > 0) %>%
+          pull(`Site (from Site)`) %>% unique()
+        # Exclude sites already marked as both
+        if (length(selected) == 2) {
+          species_sites <- setdiff(species_sites, if (exists("both_sites")) both_sites else character(0))
+        }
+        species_site_rows <- site_rows[site_rows$Site %in% species_sites, ]
+        if (nrow(species_site_rows) > 0) {
+          map <- map %>% addCircleMarkers(
+            data = species_site_rows,
+            lng = ~`Longitude Top`,
+            lat = ~`Latitude Top`,
+            color = colors[i],
+            fillColor = colors[i],
+            radius = 7,
+            popup = ~paste("Site: ", Site, "<br/>Species: ", selected[i], "<br/>Stream: ", Stream, "<br/>"),
+            opacity = 0.8,
+            fillOpacity = 0.8,
+            group = selected[i]
+          )
+        }
+      }
+      # Legend
+      legend_colors <- colors[1:length(selected)]
+      legend_labels <- selected
+      if (length(selected) == 2) {
+        legend_colors <- c(legend_colors, both_color)
+        legend_labels <- c(legend_labels, "Both")
+      }
+      map %>% addLegend(position = "bottomright", colors = legend_colors, labels = legend_labels, title = "Species", opacity = 1)
     })
 
     output$speciesmap <- renderLeaflet({
@@ -129,67 +178,106 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
     })
 
     output$speciesplot <- renderPlotly({
-      ggplotly(ggplot(spyeardat(), aes(x = Date, y = get(paste(input$specieslist, "(count)", sep = " ")), color = as.character(`Stream (from Site)`))) +
-          geom_point() +
-          geom_smooth(aes(group = 1), color = "black") +
-          scale_color_manual(values = pwpalette) +
-          labs(title = paste("Number of", input$specieslist, "collected through time"),
-               x = "Date",
-               y = paste(input$specieslist, "count", sep = " "),
-               color = "Stream") +
-          theme_classic() +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      dat <- spyeardat()
+      # Remove/rename any existing 'Species' column before pivot_longer
+      if ("Species" %in% colnames(dat)) {
+        dat <- dat %>% rename(Species_existing = Species)
+      }
+      dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
+      dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
+      dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
+      ggplotly(ggplot(dat_long, aes(x = Date, y = Count, color = Species)) +
+        geom_point() +
+        geom_smooth(aes(group = Species), color = "black") +
+        scale_color_manual(values = c("#ff9b9b", "#a5d4f5")) +
+        labs(title = paste("Number of", paste(selected, collapse = " & "), "collected through time"),
+             x = "Date",
+             y = "Count",
+             color = "Species") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 
     spyeardat2 <- reactive({
-      spyeardat() %>%
+      dat <- spyeardat()
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      if ("Species" %in% colnames(dat)) {
+        dat <- dat %>% rename(Species_existing = Species)
+      }
+      dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
+      dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
+      dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
+      dat_long %>%
         mutate(Year = format(Date, "%Y")) %>%
-        group_by(Year, `Stream (from Site)`) %>%
-        summarise(Count = sum(get(paste(input$specieslist, "(count)", sep = " "))))
+        group_by(Year, `Stream (from Site)`, Species) %>%
+        summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop")
     })
 
     output$speciesbarchart <- renderPlotly({
-      ggplotly(ggplot(spyeardat2(), aes(x = Year, y = Count, fill = as.character(`Stream (from Site)`))) +
-          geom_bar(stat = "identity") +
-          scale_fill_manual(values = pwpalette) +
-          labs(title = paste("Number of", input$specieslist, "collected by year"),
-               x = "Year",
-               y = paste(input$specieslist, "count", sep = " "),
-               fill = "Stream") +
-          theme_classic() +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      dat <- spyeardat2()
+      ggplotly(ggplot(dat, aes(x = Year, y = Count, fill = Species)) +
+        geom_bar(stat = "identity", position = "dodge") +
+        scale_fill_manual(values = c("#ff9b9b", "#a5d4f5")) +
+        labs(title = "Number collected by year",
+             x = "Year",
+             y = "Count",
+             fill = "Species") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 
     spyeardat3 <- reactive({
-      spyeardat() %>%
+      dat <- spyeardat()
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      if ("Species" %in% colnames(dat)) {
+        dat <- dat %>% rename(Species_existing = Species)
+      }
+      dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
+      dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
+      dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
+      dat_long %>%
         mutate(Year = format(Date, "%Y")) %>%
-        group_by(Year, `Stream (from Site)`) %>%
-        summarise(Count = mean(get(paste(input$specieslist, "(count)", sep = " "))))
+        group_by(Year, `Stream (from Site)`, Species) %>%
+        summarise(Count = mean(Count, na.rm = TRUE), .groups = "drop")
     })
 
     output$speciesbarchart2 <- renderPlotly({
-      ggplotly(ggplot(spyeardat3(), aes(x = Year, y = round(Count, digits = 0), fill = as.character(`Stream (from Site)`))) +
-          geom_bar(stat = "identity") +
-          scale_fill_manual(values = pwpalette) +
-          labs(title = paste("Average number of", input$specieslist, "collected per survey"),
-               x = "Year",
-               y = paste(input$specieslist, "count", sep = " "),
-               fill = "Stream") +
-          theme_classic() +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      dat <- spyeardat3()
+      ggplotly(ggplot(dat, aes(x = Year, y = round(Count, digits = 0), fill = Species)) +
+        geom_bar(stat = "identity", position = "dodge") +
+        scale_fill_manual(values = c("#ff9b9b", "#a5d4f5")) +
+        labs(title = "Average number collected per survey",
+             x = "Year",
+             y = "Count",
+             fill = "Species") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 
     dcsdat <- reactive({
-      temp <- spyeardat()[grep(input$specieslist, colnames(spyeardat()))]
-      temp <- temp[, grep("count", colnames(temp))]
+      dat <- spyeardat()
+      selected <- c(input$species1, input$species2)
+      selected <- selected[selected != "None"]
+      if ("Species" %in% colnames(dat)) {
+        dat <- dat %>% rename(Species_existing = Species)
+      }
+      dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
+      dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
+      dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
       yuh <- data.frame(
-              Date = spyeardat()$Date,
-              Count = temp,
-              Organization = as.character(spyeardat()$`Organization (from Organization)`))
-      yuh <- yuh[order(yuh$Date), ]
+        Date = dat_long$Date,
+        Species = dat_long$Species,
+        Count = dat_long$Count,
+        Organization = as.character(dat_long$`Organization (from Organization)`)
+      )
+      yuh <- yuh[order(yuh$Date, decreasing = TRUE), ]
       row.names(yuh) <- 1:nrow(yuh)
       yuh
     })

@@ -9,6 +9,7 @@ library(DT)
 library(htmlwidgets)
 library(leaflet)
 library(tidyr)
+library(forcats)
 
 # Suppress warnings for unbound global variables
 utils::globalVariables(c(
@@ -168,13 +169,6 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     ldat_site2 <- reactive({
-    #   if (is.null(input$stream_a) || is.null(input$site_a) || is.null(input$yearRange)) {
-    #     return(ldat)
-    #   }
-
-    #   ldat$`Site (from Site)` <- as.character(ldat$`Site (from Site)`)
-    #   ldat$`Stream (from Site)` <- as.character(ldat$`Stream (from Site)`)
-
       filtered_data <- ldat
       if (input$stream_a != "All") {
         filtered_data <- filtered_data %>%
@@ -293,14 +287,23 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     ldat_year_org_filt <- reactive({
-      ldat_year_org() %>%
+      data <- ldat_year_org() %>%
         select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
         pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
                      names_to = "Species", values_to = "Count") %>%
         mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
+        mutate(Species = as.factor(Species)) %>%
         filter(!is.na(Count) & Count > 0) %>%
+        mutate(`Stream (from Site)` = as.character(`Stream (from Site)`)) %>%
         mutate(`Stream (from Site)` = as.factor(`Stream (from Site)`)) %>%
-        mutate(`Site (from Site)` = as.factor(`Site (from Site)`))
+        mutate(`Site (from Site)` = as.character(`Site (from Site)`)) %>%
+        mutate(`Site (from Site)` = as.factor(`Site (from Site)`)) %>%
+        # Place Native, Non-native, and Total at the bottom of the list
+        mutate(Species = fct_relevel(Species, "Native", "Non-native", "Total", after = Inf)) %>%
+        arrange(`Stream (from Site)`, Species)
+
+      print(str(data))
+      return(data)
     })
 
     output$site_data <- DT::renderDataTable({

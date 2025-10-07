@@ -9,6 +9,7 @@ library(DT)
 library(htmlwidgets)
 library(leaflet)
 library(tidyr)
+library(shinyjs)
 
 ####################
 ### Pulling data ###
@@ -55,6 +56,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
+    useShinyjs(),
     tabItems(
       tabItem(tabName = "summary",
         mod_summary_ui("summary")
@@ -74,6 +76,78 @@ ui <- dashboardPage(
 
 # Define server logic
 server <- function(input, output, session) {
+
+  # Login modal logic
+  login_success <- reactiveVal(FALSE)
+  login_error <- reactiveVal("")
+
+  observe({
+    if (!login_success()) {
+      showModal(
+        modalDialog(
+          title = "Login Required",
+          tagList(
+            textInput("login_user", "Username"),
+            passwordInput("login_pass", "Password"),
+            div(id = "login_error_msg", style = "color: red;", textOutput("login_error")),
+            actionButton("login_btn", "Login", class = "btn-primary")
+          ),
+          easyClose = FALSE,
+          footer = NULL
+        )
+      )
+    }
+  })
+
+  output$login_error <- renderText({ login_error() })
+
+  observeEvent(input$login_btn, {
+    user <- Sys.getenv("DASHBOARD_USER")
+    pass <- Sys.getenv("DASHBOARD_PASS")
+    if (nzchar(user) && nzchar(pass) &&
+        identical(input$login_user, user) && identical(input$login_pass, pass)) {
+      login_success(TRUE)
+      login_error("")
+      removeModal()
+      # Show fair use modal after successful login
+      showModal(
+        modalDialog(
+          title = "Welcome to the Paepae O Waikolu Stream Survey Dashboard",
+          tagList(
+            p("This dashboard provides insights into the stream survey data collected by various organizations.",
+              "Navigate through the tabs to explore different analyses and visualizations."),
+            p("By continuing, you acknowledge and agree to use the data fairly and responsibly as outlined by Paepae O Waikolu."),
+            checkboxInput("fair_use_ack", "I acknowledge and agree to fair data use.", value = FALSE),
+            actionButton("continue_btn", "Continue", class = "btn-primary")
+          ),
+          easyClose = FALSE,
+          footer = NULL
+        )
+      )
+      shinyjs::disable("continue_btn")
+    } else {
+      login_error("Invalid username or password.")
+    }
+  })
+
+  # Fair use modal logic (enable/disable button)
+  observe({
+    if (login_success()) {
+      if (isTRUE(input$fair_use_ack)) {
+        shinyjs::enable("continue_btn")
+      } else {
+        shinyjs::disable("continue_btn")
+      }
+    }
+  })
+
+  observeEvent(input$continue_btn, {
+    if (login_success()) {
+      removeModal()
+    }
+  })
+
+  # Server calls for each module
   mod_summary_server("summary", ldat, sdat, color_palette)
   mod_species_server("speciesa", ldat, sdat, speciesl, pwpalette, color_palette)
   mod_sitesthrutime_server("sitethrutime", ldat, sdat, color_palette)

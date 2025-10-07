@@ -57,6 +57,10 @@ ui <- dashboardPage(
   ),
   dashboardBody(
     useShinyjs(),
+    tags$head(
+      shiny::tags$link(rel = "shortcut icon",
+                       href = "favicon.ico")
+    ),
     tabItems(
       tabItem(tabName = "summary",
         mod_summary_ui("summary")

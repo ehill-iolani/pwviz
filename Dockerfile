@@ -19,3 +19,4 @@ COPY pwviz.R /srv/shiny-server/app.R
 COPY modules/ /srv/shiny-server/modules/
 COPY functions/ /srv/shiny-server/functions/
 COPY data_processing/ /srv/shiny-server/data_processing/
+COPY www/ /srv/shiny-server/www/

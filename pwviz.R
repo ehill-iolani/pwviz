@@ -50,14 +50,17 @@ ui <- dashboardPage(
     title = "Paepae O Waikolu Stream Survey Dashboard"
   ),
   dashboardSidebar(
-    tags$img(src = "IS_Logo_Vertical_CommunityScience.png", height = "80px", style = "display: block; margin: 20px auto;"),
+    div(
+      style = "display: flex; justify-content: center; align-items: center; gap: 10px; margin: 20px 0;",
+      tags$img(src = "IS_Logo_Vertical_CommunityScience.png", height = "80px"),
+      tags$img(src = "PoWLogoFinal.png", height = "80px")
+    ),
     sidebarMenu(
       menuItem("Paepae O Waikolu at a glance", tabName = "summary"),
       menuItem("Species analysis", tabName = "speciesa"),
       menuItem("Sites through time", tabName = "sitethrutime"),
       menuItem("Organization analysis", tabName = "organa")
-    ),
-    tags$img(src = "PoWLogoFinal.png", height = "80px", style = "display: block; margin: 20px auto;")
+    )
   ),
   dashboardBody(
     useShinyjs(),
@@ -206,6 +209,9 @@ server <- function(input, output, session) {
     }
   })
 
+  #########################
+  ### PAGE SERVER CALLS ###
+  #########################
   # Server calls for each module
   mod_summary_server("summary", ldat, sdat, color_palette)
   mod_species_server("speciesa", ldat, sdat, speciesl, pwpalette, color_palette)

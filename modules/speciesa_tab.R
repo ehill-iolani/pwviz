@@ -18,7 +18,7 @@ mod_species_ui <- function(id) {
               inputId = ns("species1"),
               label = "Select species 1:",
               choices = c(speciesl),
-              selected = "Amatitlania nigrofasciata"
+              selected = "Awaous stamineus"
             ),
             selectInput(
               inputId = ns("species2"),

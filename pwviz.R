@@ -46,20 +46,32 @@ source("modules/organa_tab.R", local = TRUE)
 
 # Define UI for application, homepage is map of sites
 ui <- dashboardPage(
-  dashboardHeader(title = "Paepae O Waikolu Stream Survey Dashboard"),
+  dashboardHeader(
+    title = "Paepae O Waikolu Stream Survey Dashboard"
+  ),
   dashboardSidebar(
+    tags$img(src = "IS_Logo_Vertical_CommunityScience.png", height = "80px", style = "display: block; margin: 20px auto;"),
     sidebarMenu(
       menuItem("Paepae O Waikolu at a glance", tabName = "summary"),
       menuItem("Species analysis", tabName = "speciesa"),
       menuItem("Sites through time", tabName = "sitethrutime"),
       menuItem("Organization analysis", tabName = "organa")
-    )
+    ),
+    tags$img(src = "PoWLogoFinal.png", height = "80px", style = "display: block; margin: 20px auto;")
   ),
   dashboardBody(
     useShinyjs(),
     tags$head(
-      shiny::tags$link(rel = "shortcut icon",
-                       href = "favicon.ico")
+      tags$title("Paepae O Waikolu Stream Survey Dashboard"),
+      tags$link(rel = "icon",
+                type = "image/png",
+                href = "favicon-32x32.png"),
+      tags$link(rel = "icon",
+                type = "image/png",
+                href = "favicon-16x16.png"),
+      tags$link(rel = "apple-touch-icon",
+                type = "image/png",
+                href = "apple-touch-icon.png")
     ),
     tabItems(
       tabItem(tabName = "summary",

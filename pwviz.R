@@ -43,6 +43,8 @@ source("modules/speciesa_tab.R", local = TRUE)
 source("modules/sitesthrutime_tab.R", local = TRUE)
 # Source the organization analysis tab module
 source("modules/organa_tab.R", local = TRUE)
+# Source the meet the fish tab module
+source("modules/meetfish_TEMP_tab.R", local = TRUE)
 
 # Define UI for application, homepage is map of sites
 ui <- dashboardPage(
@@ -57,6 +59,7 @@ ui <- dashboardPage(
     ),
     sidebarMenu(
       menuItem("Paepae O Waikolu at a glance", tabName = "summary"),
+      menuItem("Meet the Fish", tabName = "meetfish"),
       menuItem("Species analysis", tabName = "speciesa"),
       menuItem("Sites through time", tabName = "sitethrutime"),
       menuItem("Organization analysis", tabName = "organa")
@@ -79,6 +82,9 @@ ui <- dashboardPage(
     tabItems(
       tabItem(tabName = "summary",
         mod_summary_ui("summary")
+      ),
+      tabItem(tabName = "meetfish",
+        mod_meetfish_ui("meetfish")
       ),
       tabItem(tabName = "speciesa",
         mod_species_ui("speciesa")
@@ -179,7 +185,7 @@ server <- function(input, output, session) {
         modalDialog(
           title = "Welcome to the Paepae O Waikolu Stream Survey Dashboard",
           tagList(
-            p("This dashboard provides insights into the stream survey data collected by various organizations.",
+            p("This dashboard provides insights into the stream survey data collected by various organizations in partnership with Paepae O Waikolu.",
               "Navigate through the tabs to explore different analyses and visualizations."),
             p("By continuing, you acknowledge and agree to use the data fairly and responsibly as outlined by Paepae O Waikolu."),
             checkboxInput("fair_use_ack", "I acknowledge and agree to fair data use.", value = FALSE),

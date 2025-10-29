@@ -49,7 +49,12 @@ source("modules/meetfish_TEMP_tab.R", local = TRUE)
 # Define UI for application, homepage is map of sites
 ui <- dashboardPage(
   dashboardHeader(
-    title = "Paepae O Waikolu Stream Survey Dashboard"
+    title = "Paepae O Waikolu Stream Survey Dashboard",
+    # Add a Questions button in the top-right of the header. The button opens a contact modal.
+    tags$li(class = "dropdown",
+      actionButton("questions_btn", label = NULL, icon = icon("question-circle"),
+                   title = "Questions / Contact", style = "margin: 10px;")
+    )
   ),
   dashboardSidebar(
     div(
@@ -213,6 +218,28 @@ server <- function(input, output, session) {
     if (TRUE) {
       removeModal()
     }
+  })
+
+  # Show contact modal when Questions button in header is clicked
+  observeEvent(input$questions_btn, {
+    showModal(
+      modalDialog(
+        title = "Questions & Contact",
+        tagList(
+          p(tags$strong("For questions regarding PWViz functionality/feedback/feature requests:")),
+          p("Name:", " Ethan Hill"),
+          p("Email:", a("ehill@iolani.org", href = "mailto:ehill@iolani.org")),
+          p(tags$strong("For questions regarding the data/data collection:")),
+          p("Name:", " Cory Yap"),
+          p("Email:", a("coryy@hawaii.edu", href = "mailto:coryy@hawaii.edu")),
+          p(tags$strong("For general questions regarding Paepae O Waikolu:")),
+          p("Name:", " Yvonne Chan"),
+          p("Email:", a("ychan@iolani.org", href = "mailto:ychan@iolani.org"))
+        ),
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      )
+    )
   })
 
   #########################

@@ -22,7 +22,7 @@ mod_meetfish_ui <- function(id) {
         p("This section is currently under development. Please check back later for more information about the fish species of the Ala Wai Watershed."),
         # PDF embeds
         fluidRow(
-          column(12,
+          column(7,
             div(class = "pdfobject-container",
               tags$iframe(src = "Invasive_Stream_Fauna.pdf#toolbar=1", type = "application/pdf", style = "width:100%; height:1200px;"),
               tags$div(class = "pdf-fallback", style = "margin-top:8px;",
@@ -34,7 +34,7 @@ mod_meetfish_ui <- function(id) {
           )
         ),
         fluidRow(
-          column(12,
+          column(7,
             div(class = "pdf-container",
               tags$iframe(src = "Native_Stream_Fauna.pdf#toolbar=1", type = "application/pdf", style = "width:100%; height:1200px;"),
               tags$div(class = "pdf-fallback", style = "margin-top:8px;",

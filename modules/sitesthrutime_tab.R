@@ -13,7 +13,7 @@ library(forcats)
 
 # Suppress warnings for unbound global variables
 utils::globalVariables(c(
-  "Site", "Stream", "Date", "HSIBI", "Species", "Count", 
+  "Site", "Stream", "Date", "HSIBI", "Species", "Count",
   "Stream (from Site)", "Site (from Site)", "sdat", "ldat"
 ))
 

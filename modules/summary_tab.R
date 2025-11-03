@@ -168,7 +168,7 @@ mod_summary_server <- function(id, ldat, sdat, color_palette) {
         value = ldat_temp()$visits,
         subtitle = "Number of field surveys",
         color = "orange",
-        icon = icon("eye-open", lib = "glyphicon")
+        icon = icon("clipboard-list", lib = "font-awesome")
       )
     })
 

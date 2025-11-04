@@ -38,7 +38,7 @@ mod_sitesthrutime_ui <- function(id) {
             selectInput(
               inputId = ns("stream_a"),
               label = "Select a stream:",
-              choices = c("All", sort(as.character(unique(sdat$Stream)), decreasing = TRUE)),
+              choices = c("All", sort(as.character(unique(sdat$Stream)))),
               selected = "All"
             )
           ),
@@ -117,7 +117,7 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
       selectInput(
         inputId = ns("site_a"),
         label = "Select a site:",
-        choices = c("All", sort(as.character(unique(sdat$Site[sdat$Stream == input$stream_a])))),
+        choices = c("All", as.character(sort(sdat$Site[sdat$Stream == input$stream_a]))),
         selected = "All"
       )
     })

@@ -95,7 +95,7 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
       selectInput(
         inputId = ns("site"),
         label = "Select a site:",
-        choices = c("All", sort(as.character(unique(spdat()$`Site (from Site)`)))),
+        choices = c("All", as.character(sort(unique(spdat()$`Site (from Site)`)))),
         selected = "All"
       )
     })

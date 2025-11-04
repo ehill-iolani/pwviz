@@ -271,19 +271,46 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
       dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
       dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
       dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
+      # Clean up Organization field so entries like
+      # c("Org A", "Org B") become a readable HTML string with line breaks
+      org_raw <- as.character(dat_long$`Organization (from Organization)`)
+      format_org <- vapply(org_raw, FUN.VALUE = character(1), USE.NAMES = FALSE, FUN = function(x) {
+        if (is.na(x) || x == "") return(NA_character_)
+        # If string looks like an R vector: c("A", "B"), extract quoted items
+        if (grepl('^\\s*c\\s*\\(', x)) {
+          # find all quoted pieces
+          matches <- regmatches(x, gregexpr('"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"', x, perl = TRUE))
+          if (length(matches) && length(matches[[1]]) > 0) {
+            # remove surrounding quotes and join with HTML line breaks
+            clean <- gsub('^"|"$', '', matches[[1]])
+            return(paste(clean, collapse = '<br/>'))
+          }
+          # fallback: remove c( ) and any quotes, then replace commas with breaks
+          tmp <- gsub('^\\s*c\\s*\\(|\\)\\s*$', '', x)
+          tmp <- gsub('"', '', tmp)
+          tmp <- gsub('\\s*,\\s*', '<br/>', tmp)
+          tmp <- gsub('^\\s+|\\s+$', '', tmp)
+          return(tmp)
+        }
+        # otherwise leave as-is
+        x
+      })
+
       yuh <- data.frame(
         Date = dat_long$Date,
         Species = dat_long$Species,
         Count = dat_long$Count,
-        Organization = as.character(dat_long$`Organization (from Organization)`)
+        Organization = as.character(format_org),
+        stringsAsFactors = FALSE
       )
       yuh <- yuh[order(yuh$Date, decreasing = TRUE), ]
-      row.names(yuh) <- 1:nrow(yuh)
+      row.names(yuh) <- seq_len(nrow(yuh))
       yuh
     })
 
     output$data <- DT::renderDataTable({
-      DT::datatable(dcsdat())
+      # allow HTML in the Organization column (we insert <br/> for multi-org rows)
+      DT::datatable(dcsdat(), escape = FALSE, options = list(pageLength = 25))
     })
   })
 }

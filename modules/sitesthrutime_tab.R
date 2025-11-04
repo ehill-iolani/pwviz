@@ -107,6 +107,32 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Helper to parse organization entries like: c("Org A", "Org B")
+    parse_orgs <- function(x) {
+      if (is.na(x) || x == "" || is.null(x)) return(character(0))
+      x <- as.character(x)
+      # If it looks like an R vector, extract quoted strings
+      if (grepl('^\\s*c\\s*\\(', x)) {
+        matches <- regmatches(x, gregexpr('"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"', x, perl = TRUE))
+        if (length(matches) && length(matches[[1]]) > 0) {
+          clean <- gsub('^"|"$', '', matches[[1]])
+          return(trimws(clean))
+        }
+        # fallback: remove c(...) and quotes then split on commas
+        tmp <- gsub('^\\s*c\\s*\\(|\\)\\s*$', '', x)
+        tmp <- gsub('"', '', tmp)
+        parts <- unlist(strsplit(tmp, '\\s*,\\s*'))
+        parts <- trimws(parts)
+        parts[parts != ""]
+      } else {
+        # not an R vector: attempt comma split or return original string
+        parts <- unlist(strsplit(x, '\\s*,\\s*'))
+        parts <- gsub('^"|"$', '', parts)
+        parts <- trimws(parts)
+        parts[parts != ""]
+      }
+    }
+
     # Debugging: Observe input values
     observe({
       print(paste("Selected stream:", input$stream_a))
@@ -260,30 +286,55 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$organ_b <- renderUI({
+      # Build list of individual organizations for the selected year (or all years)
+      rows <- if (is.null(input$yearselect) || input$yearselect == "All") ldat else ldat[ldat$Year == input$yearselect, ]
+      raw_orgs <- as.character(rows$`Organization (from Organization)`)
+      parsed <- unlist(lapply(raw_orgs, parse_orgs))
+      choices <- sort(unique(parsed))
       selectInput(
         inputId = ns("organ_b"),
         label = "Select an organization:",
-        choices = sort(as.character(unique(ldat$`Organization (from Organization)`[ldat$Year == input$yearselect]))),
+        choices = choices,
         selected = NULL
       )
     })
 
     output$l3 <- renderUI({
+      # Build survey date choices for the selected year and organization
+      rows <- if (is.null(input$yearselect) || input$yearselect == "All") ldat else ldat[ldat$Year == input$yearselect, ]
+      if (!is.null(input$organ_b) && input$organ_b != "") {
+        keep <- vapply(as.character(rows$`Organization (from Organization)`), FUN.VALUE = logical(1), USE.NAMES = FALSE, FUN = function(x) {
+          input$organ_b %in% parse_orgs(as.character(x))
+        })
+        rows <- rows[keep, ]
+      }
+      choices <- sort(as.character(unique(rows$Date)))
       selectInput(
         inputId = ns("survey_date"),
         label = "Select a survey date:",
-        choices = sort(as.character(unique(ldat$Date[ldat$Year == input$yearselect & ldat$`Organization (from Organization)` == input$organ_b]))),
+        choices = choices,
         selected = NULL
       )
     })
 
     ldat_year_org <- reactive({
-      if (input$yearselect == "All") {
-        ldat
-      } else {
-        ldat %>%
-          filter(Year == input$yearselect & `Organization (from Organization)` == input$organ_b & Date == input$survey_date)
+      data <- ldat
+      # filter by year if specified
+      if (!is.null(input$yearselect) && input$yearselect != "All") {
+        data <- data %>% filter(Year == input$yearselect)
       }
+      # filter by organization membership (handles c("A","B") style entries)
+      if (!is.null(input$organ_b) && input$organ_b != "") {
+        keep <- vapply(as.character(data$`Organization (from Organization)`), FUN.VALUE = logical(1), USE.NAMES = FALSE, FUN = function(x) {
+          input$organ_b %in% parse_orgs(as.character(x))
+        })
+        data <- data[keep, ]
+      }
+      # filter by survey date if specified
+      if (!is.null(input$survey_date) && input$survey_date != "") {
+        data <- data %>% filter(Date == input$survey_date)
+      }
+      data
     })
 
     ldat_year_org_filt <- reactive({

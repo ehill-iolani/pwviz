@@ -38,7 +38,7 @@ mod_sitesthrutime_ui <- function(id) {
             selectInput(
               inputId = ns("stream_a"),
               label = "Select a stream:",
-              choices = c("All", sort(as.character(unique(sdat$Stream)))),
+              choices = c("All", as.character(sort(unique(sdat$Stream)))),
               selected = "All"
             )
           ),
@@ -216,7 +216,7 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
         mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
         filter(!is.na(Count) & Count > 0) %>%
         filter(!Species %in% c("Total", "Native", "Non-native"))
-      
+
       data$`Site (from Site)` <- as.character(data$`Site (from Site)`)
       data$`Stream (from Site)` <- as.character(data$`Stream (from Site)`)
       return(data)
@@ -272,16 +272,16 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
 
     output$hsibi_trends <- renderPlotly({
       ggplotly(ggplot(hdat(), aes(x = Date, y = HSIBI, color = `Stream (from Site)`)) +
-        geom_point() +
-        geom_smooth(aes(group = 1), color = "black") +
-        scale_color_manual(values = pwpalette) +
-        labs(title = if (input$site_a == "All") {paste("HSIBI trends through time for", input$stream_a, "stream(s)", sep = " ")}
-          else {paste("HSIBI trends through time for", input$site_a, sep = " ")},
-             x = "Date",
-             y = "HSIBI",
-             color = "Stream") +
-        theme_classic() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+          geom_point() +
+          geom_smooth(aes(group = 1), color = "black") +
+          scale_color_manual(values = pwpalette) +
+          labs(title = if (input$site_a == "All") {paste("HSIBI trends through time for", input$stream_a, "stream(s)", sep = " ")}
+            else {paste("HSIBI trends through time for", input$site_a, sep = " ")},
+               x = "Date",
+               y = "HSIBI",
+               color = "Stream") +
+          theme_classic() +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 

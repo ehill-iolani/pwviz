@@ -21,6 +21,9 @@ sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
 sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa",
               "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo", "Kalihi")), ]
 
+# Manually specify the order of streams for mapping and plotting
+sdat$Stream <- factor(sdat$Stream, levels = c("Makiki", "Manoa", "Palolo", "Manoa-Palolo"))
+
 # Manually specify the order of sites for mapping and plotting
 sdat$Site <- factor(sdat$Site, levels = c("Kanealole", "Halau Ku Mana", "Baker Park", "Washington Middle School",
                                           "Lyon Arboretum", "Waihi (USGS Gage)", "Waiakeakua (USGS Gage)", "Waakaua", "Manoa Valley District Park", "Manoa Marketplace", "Woodlawn Bridge (Noelani Elementary)", "Kanewai Loi", "Kanewai Field",

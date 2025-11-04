@@ -25,7 +25,7 @@ mod_summary_ui <- function(id) {
           ),
           column(
             width = 3,
-            radioButtons(ns("stream"), "Select a stream:", c("All", sort(unique(sdat$Stream))), selected = "All")
+            radioButtons(ns("stream"), "Select a stream:", c("All", as.character(sort(unique(sdat$Stream)))), selected = "All")
           )
         )
       ),

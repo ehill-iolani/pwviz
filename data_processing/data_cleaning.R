@@ -20,7 +20,18 @@ sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
 sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)
 sdat <- sdat[!(sdat$Stream %in% c("Ala Wai Canal", "Pauoa",
               "Nuuanu", "Waihee", "Kaaawa", "Hakipuu", "Heeia", "Punaluu", "Waimanalo", "Kalihi")), ]
-pwpalette <- c("Makiki" = "#2962FF", "Manoa" = "green", "Manoa-Palolo" = "orange", "Palolo" = "#FFDE21")
+
+# Manually specify the order of sites for mapping and plotting
+sdat$Site <- factor(sdat$Site, levels = c("Kanealole", "Halau Ku Mana", "Baker Park", "Washington Middle School",
+                                          "Lyon Arboretum", "Waihi (USGS Gage)", "Waiakeakua (USGS Gage)", "Waakaua", "Manoa Valley District Park", "Manoa Marketplace", "Woodlawn Bridge (Noelani Elementary)", "Kanewai Loi", "Kanewai Field",
+                                          "Manoa-Palolo Confluence", "Kaimuki  High School",
+                                          "Anuenue School", "Palolo Elementary", "Jarrett Middle School", "Saint Louis Field", "Chaminade"))
+
+# Define color palette for streams
+pwpalette <- c("Makiki" = "#2962FF",
+               "Manoa" = "green",
+               "Manoa-Palolo" = "orange",
+               "Palolo" = "#FFDE21")
 color_palette <- colorFactor(palette = pwpalette, domain = sdat$Stream)
 
 # Restrict survey data to only paepae
@@ -39,6 +50,9 @@ ldat$Year <- format(ldat$Date, "%Y")
 
 # Remove surveys from Ala Wai Canal, Pauoa, and Nuuanu
 ldat <- ldat[!(ldat$`Stream (from Site)` %in% c("Ala Wai Canal", "Pauoa", "Nuuanu")), ]
+
+# Coerce ldat$`Site (from Site)` to factor with levels in desired order
+ldat$`Site (from Site)` <- factor(ldat$`Site (from Site)`, levels = levels(sdat$Site))
 
 # Retrive species names from column names
 species <- colnames(ldat)[grep("(count)", colnames(ldat))]

@@ -156,7 +156,7 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
             color = colors[i],
             fillColor = colors[i],
             radius = 10,
-            popup = ~paste("Site: ", Site, "<br/>Species: ", selected[i], "<br/>Stream: ", Stream, "<br/>"),
+            popup = ~paste("Site: ", Site, "<br/>Species: ", selected[i], "<br/>Stream: ", Stream, "<br/>", "Elevation (ft): ", `Elevation Bottom`, "<br/>"),
             opacity = 0.8,
             fillOpacity = 0.8,
             group = selected[i]

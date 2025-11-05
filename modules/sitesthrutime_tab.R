@@ -176,7 +176,7 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
           lng = ~`Longitude Top`,
           lat = ~`Latitude Top`,
           color = ~color_palette(Stream),
-          popup = ~paste("Site: ", Site, "<br/>", "Stream: ", Stream, "<br/>"),
+          popup = ~paste("Site: ", Site, "<br/>", "Stream: ", Stream, "<br/>", "Elevation (ft): ", `Elevation Bottom`, "<br/>"),
           opacity = 0.8,
           fillOpacity = 0.8
         ) %>%

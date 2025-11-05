@@ -12,25 +12,24 @@ library(tidyr)
 library(forcats)
 
 # Suppress warnings for unbound global variables
-utils::globalVariables(c(
+globalVariables(c(
   "Site", "Stream", "Date", "HSIBI", "Species", "Count",
   "Stream (from Site)", "Site (from Site)", "sdat", "ldat"
 ))
 
 # Sites Through Time Tab Module
-
 mod_sitesthrutime_ui <- function(id) {
   ns <- NS(id)
   tagList(
     fluidRow(
       box(
         width = 12,
-        title = "Site Trends Over Time",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Site Trends Over Time"),
         fluidRow(
           column(
             width = 9,
             title = "Site Map",
-            leafletOutput(ns("site_map"))
+            leafletOutput(ns("site_map"), height = "700px")
           ),
           column(
             width = 3,
@@ -63,7 +62,7 @@ mod_sitesthrutime_ui <- function(id) {
       ),
       box(
         width = 12,
-        title = "Site Data Table",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Site Data Table"),
         fluidRow(
           column(
             width = 2,
@@ -358,7 +357,6 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
         mutate(Species = fct_relevel(Species, "Native", "Non-native", "Total", after = Inf)) %>%
         arrange(`Stream (from Site)`, Species)
 
-      print(str(data))
       return(data)
     })
 

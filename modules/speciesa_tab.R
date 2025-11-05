@@ -1,16 +1,34 @@
-# Species Analysis Tab Module
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(plotly)
+library(shinydashboard)
+library(shinyBS)
+library(DT)
+library(htmlwidgets)
+library(leaflet)
+library(tidyr)
+library(forcats)
 
+# Suppress warnings for unbound global variables
+globalVariables(c(
+  "Site", "Stream", "Date", "HSIBI", "Species", "Count",
+  "Stream (from Site)", "Site (from Site)", "sdat", "ldat"
+))
+
+# Species Analysis Tab Module
 mod_species_ui <- function(id) {
   ns <- NS(id)
   tagList(
     fluidRow(
       box(
         width = 12,
-        title = "Select a species and site",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Select a species and site"),
         fluidRow(
           column(
             width = 9,
-            leafletOutput(ns("speciesmap"))
+            leafletOutput(ns("speciesmap"), height = "700px")
           ),
           column(
             width = 3,
@@ -33,7 +51,7 @@ mod_species_ui <- function(id) {
           )
         )
       ),
-      tags$style(HTML(".irs-grid-text { font-size: 12px !important; } .irs-min, .irs-max, .irs-from, .irs-to, .irs-single { font-size: 12px !important; }")),
+      tags$style(HTML(".irs-grid-text { font-size: 16px !important; } .irs-min, .irs-max, .irs-from, .irs-to, .irs-single { font-size: 16px !important; }")),
       box(
         width = 12,
         sliderInput(
@@ -59,7 +77,7 @@ mod_species_ui <- function(id) {
         plotlyOutput(ns("speciesbarchart2"))
       ),
       box(
-        title = "Counts by Date and Organization",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Counts by Date and Organization"),
         width = 12,
         dataTableOutput(ns("data"))
       )

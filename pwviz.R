@@ -80,20 +80,19 @@ ui <- dashboardPage(
                 href = "favicon-16x16.png"),
       tags$link(rel = "apple-touch-icon",
                 type = "image/png",
-                href = "apple-touch-icon.png")
-      ,
+                href = "apple-touch-icon.png"),
       tags$style(HTML("\
         /* main sidebar menu items */\n\
         .main-sidebar .sidebar .sidebar-menu > li > a {\n\
           font-size: 18px !important;\n\
           padding: 12px 10px !important;\n\
         }\n\
-\n\
+         \n\
         /* nested submenu items, if any */\n\
         .main-sidebar .sidebar .sidebar-menu .treeview-menu > li > a {\n\
           font-size: 16px !important;\n\
         }\n\
-\n\
+         \n\
         /* allow wrapping for long labels */\n\
         .main-sidebar .sidebar .sidebar-menu > li > a { white-space: normal; }\n\
       "))

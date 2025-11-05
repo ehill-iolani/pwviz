@@ -10,15 +10,21 @@ library(htmlwidgets)
 library(leaflet)
 library(tidyr)
 
-# Organization Analysis Tab Module
+# Suppress warnings for unbound global variables
+globalVariables(c(
+  "Organization", "Organization Classification",
+  "Stream (from Site)", "Non-native (count)", "Native (count)",
+  "Biomass", "Date", "ldat", "odat"
+))
 
+# Organization Analysis Tab Module
 mod_organa_ui <- function(id) {
   ns <- NS(id)
   tagList(
     fluidRow(
       box(
         width = 12,
-        title = "Organization Analysis",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Organization Analysis"),
         fluidRow(
           column(
             width = 6,
@@ -38,7 +44,7 @@ mod_organa_ui <- function(id) {
         )
       ),
       box(
-        title = "Organization Summary",
+        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Organization Summary"),
         width = 12,
         valueBoxOutput(ns("org_invasive_sum"), width = 3),
         valueBoxOutput(ns("org_native_sum"), width = 3),

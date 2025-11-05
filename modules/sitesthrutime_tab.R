@@ -291,33 +291,62 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
 
     output$organ_b <- renderUI({
       # Build list of individual organizations for the selected year (or all years)
-      rows <- if (is.null(input$yearselect) || input$yearselect == "All") ldat else ldat[ldat$Year == input$yearselect, ]
+      rows <- if (is.null(input$yearselect) || input$yearselect == "All") {
+        ldat
+      } else {
+        ldat[ldat$Year == input$yearselect, ]
+      }
+
+      # parse organization entries to build choices
       raw_orgs <- as.character(rows$`Organization (from Organization)`)
       parsed <- unlist(lapply(raw_orgs, parse_orgs))
       choices <- sort(unique(parsed))
+
+      # determine most recent survey date among these rows and default-select that org
+      dates_raw <- as.character(rows$Date)
+      dates_parsed <- suppressWarnings(as.Date(dates_raw))
+      if (!all(is.na(dates_parsed))) {
+        latest_date <- max(dates_parsed, na.rm = TRUE)
+        recent_rows <- rows[which(dates_parsed == latest_date), ]
+      } else {
+        latest_date_str <- if (length(dates_raw) > 0) sort(dates_raw, decreasing = TRUE)[1] else NA_character_
+        recent_rows <- if (!is.na(latest_date_str)) rows[which(dates_raw == latest_date_str), ] else rows[0, ]
+      }
+
+      recent_raw_orgs <- as.character(recent_rows$`Organization (from Organization)`)
+      recent_parsed <- unique(unlist(lapply(recent_raw_orgs, parse_orgs)))
+      selected_org <- if (length(recent_parsed) > 0) recent_parsed[1] else NULL
+
       selectInput(
         inputId = ns("organ_b"),
         label = "Select an organization:",
         choices = choices,
-        selected = NULL
+        selected = selected_org
       )
     })
 
     output$l3 <- renderUI({
       # Build survey date choices for the selected year and organization
-      rows <- if (is.null(input$yearselect) || input$yearselect == "All") ldat else ldat[ldat$Year == input$yearselect, ]
+      rows <- if (is.null(input$yearselect) || input$yearselect == "All") {
+        ldat
+      } else {
+        ldat[ldat$Year == input$yearselect, ]
+      }
       if (!is.null(input$organ_b) && input$organ_b != "") {
         keep <- vapply(as.character(rows$`Organization (from Organization)`), FUN.VALUE = logical(1), USE.NAMES = FALSE, FUN = function(x) {
           input$organ_b %in% parse_orgs(as.character(x))
         })
         rows <- rows[keep, ]
       }
-      choices <- sort(as.character(unique(rows$Date)))
+      # Order choices newest-first and default to the most recent survey date
+      choices <- sort(as.character(unique(rows$Date)), decreasing = TRUE)
+      selected_choice <- if (length(choices) > 0) choices[1] else NULL
+
       selectInput(
         inputId = ns("survey_date"),
         label = "Select a survey date:",
         choices = choices,
-        selected = NULL
+        selected = selected_choice
       )
     })
 
@@ -356,6 +385,16 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
         # Place Native, Non-native, and Total at the bottom of the list
         mutate(Species = fct_relevel(Species, "Native", "Non-native", "Total", after = Inf)) %>%
         arrange(`Stream (from Site)`, Species)
+
+      # Make a clean dataframe for the table
+      data <- data.frame(
+        Date = data$Date,
+        HSIBI = data$HSIBI,
+        Stream = data$`Stream (from Site)`,
+        Site = data$`Site (from Site)`,
+        Species = data$Species,
+        Count = data$Count
+      )
 
       return(data)
     })

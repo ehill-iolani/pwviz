@@ -268,7 +268,7 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
       if ("Species" %in% colnames(dat)) {
         dat <- dat %>% rename(Species_existing = Species)
       }
-      dat_long <- tidyr::pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
+      dat_long <- pivot_longer(dat, cols = tidyselect::matches("\\(count\\)"), names_to = "Species", values_to = "Count")
       dat_long <- dat_long %>% filter(Species %in% paste(selected, "(count)", sep = " "))
       dat_long$Species <- gsub(" \\(.+\\)", "", dat_long$Species)
       # Clean up Organization field so entries like
@@ -296,16 +296,18 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
         x
       })
 
-      yuh <- data.frame(
+      species_table <- data.frame(
         Date = dat_long$Date,
         Species = dat_long$Species,
         Count = dat_long$Count,
         Organization = as.character(format_org),
+        Site = dat_long$`Site (from Site)`,
+        Stream = as.character(dat_long$`Stream (from Site)`),
         stringsAsFactors = FALSE
       )
-      yuh <- yuh[order(yuh$Date, decreasing = TRUE), ]
-      row.names(yuh) <- seq_len(nrow(yuh))
-      yuh
+      species_table <- species_table[order(species_table$Date, decreasing = TRUE), ]
+      row.names(species_table) <- seq_len(nrow(species_table))
+      return(species_table)
     })
 
     output$data <- DT::renderDataTable({

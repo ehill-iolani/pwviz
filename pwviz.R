@@ -49,8 +49,7 @@ source("modules/meetfish_TEMP_tab.R", local = TRUE)
 # Define UI for application, homepage is map of sites
 ui <- dashboardPage(
   dashboardHeader(
-    title = "Paepae O Waikolu Stream Survey Dashboard",
-    # Add a Questions button in the top-right of the header. The button opens a contact modal.
+    title = "Paepae O Waikolu",
     tags$li(class = "dropdown",
       actionButton("questions_btn", label = NULL, icon = icon("question-circle"),
                    title = "Questions / Contact", style = "margin: 10px;")
@@ -63,7 +62,7 @@ ui <- dashboardPage(
       tags$img(src = "PoWLogoFinal.png", height = "80px")
     ),
     sidebarMenu(
-      menuItem("Paepae O Waikolu at a glance", tabName = "summary"),
+      menuItem("At a glance", tabName = "summary"),
       menuItem("Meet the Fish", tabName = "meetfish"),
       menuItem("Species analysis", tabName = "speciesa"),
       menuItem("Sites through time", tabName = "sitethrutime"),
@@ -73,7 +72,6 @@ ui <- dashboardPage(
   dashboardBody(
     useShinyjs(),
     tags$head(
-      tags$title("Paepae O Waikolu Stream Survey Dashboard"),
       tags$link(rel = "icon",
                 type = "image/png",
                 href = "favicon-32x32.png"),
@@ -83,6 +81,22 @@ ui <- dashboardPage(
       tags$link(rel = "apple-touch-icon",
                 type = "image/png",
                 href = "apple-touch-icon.png")
+      ,
+      tags$style(HTML("\
+        /* main sidebar menu items */\n\
+        .main-sidebar .sidebar .sidebar-menu > li > a {\n\
+          font-size: 18px !important;\n\
+          padding: 12px 10px !important;\n\
+        }\n\
+\n\
+        /* nested submenu items, if any */\n\
+        .main-sidebar .sidebar .sidebar-menu .treeview-menu > li > a {\n\
+          font-size: 16px !important;\n\
+        }\n\
+\n\
+        /* allow wrapping for long labels */\n\
+        .main-sidebar .sidebar .sidebar-menu > li > a { white-space: normal; }\n\
+      "))
     ),
     tabItems(
       tabItem(tabName = "summary",

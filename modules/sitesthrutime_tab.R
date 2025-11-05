@@ -140,20 +140,25 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$site_a <- renderUI({
+      # If stream is "All" (or not set) show all sites; otherwise show sites for the selected stream
+      site_choices <- if (is.null(input$stream_a) || input$stream_a == "All") {
+        as.character(unique(sort(sdat$Site)))
+      } else {
+        as.character(unique(sort(sdat$Site[sdat$Stream == input$stream_a])))
+      }
+
       selectInput(
         inputId = ns("site_a"),
         label = "Select a site:",
-        choices = c("All", as.character(sort(sdat$Site[sdat$Stream == input$stream_a]))),
+        choices = c("All", site_choices),
         selected = "All"
       )
     })
 
     filtered_sdat <- reactive({
-
       if (is.null(input$stream_a) || is.null(input$site_a)) {
         return(sdat)
       }
-
       if (input$site_a == "All" && input$stream_a == "All") {
         sdat
       } else if (input$site_a != "All" && input$stream_a == "All") {

@@ -16,21 +16,23 @@ mod_summary_ui <- function(id) {
   tagList(
     fluidRow(
       box(
-        title = "Stream + Site Map",
+        title = tags$div(style = "font-size:24px; font-weight:600;", "Stream + Site Map"),
         width = 12,
         fluidRow(
           column(
             width = 9,
-            leafletOutput(ns("map"))
+            leafletOutput(ns("map"), height = "700px")
           ),
           column(
             width = 3,
-            radioButtons(ns("stream"), "Select a stream:", c("All", as.character(sort(unique(sdat$Stream)))), selected = "All")
+            div(style = "font-size:18px;",
+                radioButtons(ns("stream"), "Select a stream:", c("All", as.character(sort(unique(sdat$Stream)))), selected = "All")
+            )
           )
         )
       ),
       box(
-        title = "Overview Based on Stream Selection",
+        title = tags$div(style = "font-size:24px; font-weight:600;", "Overview Based on Stream Selection"),
         width = 12,
         fluidRow(
           valueBoxOutput(ns("invasive"), width = 3),

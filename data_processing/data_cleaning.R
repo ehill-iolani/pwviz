@@ -27,8 +27,8 @@ sdat$Stream <- factor(sdat$Stream, levels = c("Makiki", "Manoa", "Palolo", "Mano
 # Manually specify the order of sites for mapping and plotting
 sdat$Site <- factor(sdat$Site, levels = c("Kanealole", "Halau Ku Mana", "Baker Park", "Washington Middle School",
                                           "Lyon Arboretum", "Waihi (USGS Gage)", "Waiakeakua (USGS Gage)", "Waakaua", "Manoa Valley District Park", "Manoa Marketplace", "Woodlawn Bridge (Noelani Elementary)", "Kanewai Loi", "Kanewai Field",
-                                          "Manoa-Palolo Confluence", "Kaimuki  High School",
-                                          "Anuenue School", "Palolo Elementary", "Jarrett Middle School", "Saint Louis Field", "Chaminade"))
+                                          "Anuenue School", "Palolo Elementary", "Jarrett Middle School", "Saint Louis Field", "Chaminade",
+                                          "Manoa-Palolo Confluence", "Kaimuki  High School"))
 
 # Define color palette for streams
 pwpalette <- c("Makiki" = "#2962FF",

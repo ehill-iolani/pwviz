@@ -31,14 +31,14 @@ mod_organa_ui <- function(id) {
             title = "Select an Organization",
             selectInput(
               inputId = ns("organ_cat"),
-              label = "Select an organization category:",
+              label = tags$div(style = "font-size: 16px;", "Select an organization category:"),
               choices = c("All", sort(as.character(unique(odat$`Organization Classification`)))),
               selected = "All"
             )
           ),
           column(
             width = 6,
-            title = "Select a specific organization",
+            title = "Select a specific organization:",
             uiOutput(ns("organ_a"))
           )
         )
@@ -74,7 +74,7 @@ mod_organa_server <- function(id, ldat, odat, pwpalette) {
     output$organ_a <- renderUI({
       selectInput(
         inputId = ns("organ_a"),
-        label = "Select an organization:",
+        label = tags$div(style = "font-size: 16px;", "Select an organization:"),
         choices = c("All", sort(as.character(unique(odat$Organization[odat$`Organization Classification` == input$organ_cat])))),
         selected = "All"
       )

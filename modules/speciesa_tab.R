@@ -34,13 +34,13 @@ mod_species_ui <- function(id) {
             width = 3,
             selectInput(
               inputId = ns("species1"),
-              label = "Select species 1:",
+              label = tags$div(style = "font-size: 16px;", "Select species 1:"),
               choices = c(speciesl),
               selected = "Awaous stamineus"
             ),
             selectInput(
               inputId = ns("species2"),
-              label = "Select species 2:",
+              label = tags$div(style = "font-size: 16px;", "Select species 2:"),
               choices = c("None", speciesl),
               selected = "None"
             )
@@ -112,7 +112,7 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
     output$site_ui <- renderUI({
       selectInput(
         inputId = ns("site"),
-        label = "Select a site:",
+        label = tags$div(style = "font-size: 16px;", "Select a site:"),
         choices = c("All", as.character(sort(unique(spdat()$`Site (from Site)`)))),
         selected = "All"
       )

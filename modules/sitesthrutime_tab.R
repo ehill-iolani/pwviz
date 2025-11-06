@@ -36,7 +36,7 @@ mod_sitesthrutime_ui <- function(id) {
             title = "Select a stream",
             selectInput(
               inputId = ns("stream_a"),
-              label = "Select a stream:",
+              label = tags$div(style = "font-size: 16px;", "Select a stream:"),
               choices = c("All", as.character(sort(unique(sdat$Stream)))),
               selected = "All"
             )
@@ -148,7 +148,7 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
 
       selectInput(
         inputId = ns("site_a"),
-        label = "Select a site:",
+        label = tags$div(style = "font-size: 16px;", "Select a site:"),
         choices = c("All", site_choices),
         selected = "All"
       )

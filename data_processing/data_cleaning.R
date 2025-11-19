@@ -57,6 +57,13 @@ ldat <- ldat[!(ldat$`Stream (from Site)` %in% c("Ala Wai Canal", "Pauoa", "Nuuan
 # Coerce ldat$`Site (from Site)` to factor with levels in desired order
 ldat$`Site (from Site)` <- factor(ldat$`Site (from Site)`, levels = levels(sdat$Site))
 
+# Species cleanup - remove selected species columns
+ldat <- ldat %>%
+  select(-c(`Aurelia aurita (moon jelly) (count)`,
+            `Bufo marinus (cane toad) (count)`, `Bufo marinus (cane toad) (size)`,
+            `Caranx sexfasciatus (pake ulua/bigeye jack) (count)`, `Caranx sexfasciatus (pake ulua/bigeye jack) (size)`,
+            `Unknown (count)`, `Unknown (size)`))
+
 # Retrive species names from column names
 species <- colnames(ldat)[grep("(count)", colnames(ldat))]
 speciesl <- gsub(" \\(count\\)", "", species)

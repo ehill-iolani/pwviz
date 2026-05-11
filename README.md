@@ -2,7 +2,7 @@
 This repository hosts the code and resources behind the Paepae O Waikolu data-visualization dashboard, built to support the ʻIolani School Office of Community Science. The dashboard helps educators, students, scientists, and the public explore, analyze, and communicate patterns in Hawaiʻi’s stream biodiversity data.
 
 To visit the dashboard, follow the link below:
-https://pwviz-cloudrun-157052427026.us-central1.run.app/
+https://pwviz.app/
 
 ## Project Context & Motivation
 

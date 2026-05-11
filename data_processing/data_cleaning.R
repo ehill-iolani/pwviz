@@ -14,7 +14,7 @@ library(tidyr)
 ### DATA CLEANING ###
 #####################
 # Clean the imported site data
-sdat <- sdat[, c(2, 3, 5, 7, 8)]
+sdat <- sdat[,c ("Stream", "Site", "Latitude Top", "Longitude Top", "Latitude Bottom", "Longitude Bottom", "Elevation Bottom")]
 sdat[1, 2] <- "Ala Wai Canal"
 sdat$`Longitude Bottom` <- as.numeric(sdat$`Latitude Top`)
 sdat$`Longitude Top` <- as.numeric(sdat$`Longitude Top`)

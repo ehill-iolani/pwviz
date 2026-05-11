@@ -10,6 +10,7 @@ library(htmlwidgets)
 library(leaflet)
 library(tidyr)
 library(forcats)
+library(shinycssloaders)
 
 # Suppress warnings for unbound global variables
 globalVariables(c(
@@ -28,7 +29,7 @@ mod_species_ui <- function(id) {
         fluidRow(
           column(
             width = 9,
-            leafletOutput(ns("speciesmap"), height = "700px")
+            shinycssloaders::withSpinner(leafletOutput(ns("speciesmap"), height = "700px"), type = 6)
           ),
           column(
             width = 3,
@@ -54,32 +55,35 @@ mod_species_ui <- function(id) {
       tags$style(HTML(".irs-grid-text { font-size: 16px !important; } .irs-min, .irs-max, .irs-from, .irs-to, .irs-single { font-size: 16px !important; }")),
       box(
         width = 12,
+        # Use safe defaults here and update actual bounds in the server to avoid
+        # evaluating `ldat` during UI construction (which can error if data
+        # isn't yet available).
         sliderInput(
           ns("yearRange"),
           "Select Year Range:",
-          min = as.numeric(format(min(ldat$Date), "%Y")),
-          max = as.numeric(format(max(ldat$Date), "%Y")),
-          value = c(as.numeric(format(min(ldat$Date), "%Y")), as.numeric(format(max(ldat$Date), "%Y"))),
+          min = 1900,
+          max = as.numeric(format(Sys.Date(), "%Y")),
+          value = c(1900, as.numeric(format(Sys.Date(), "%Y"))),
           step = 1,
           sep = ""
         )
       ),
       box(
         width = 12,
-        plotlyOutput(ns("speciesplot"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("speciesplot")), type = 6)
       ),
       box(
         width = 12,
-        plotlyOutput(ns("speciesbarchart"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("speciesbarchart")), type = 6)
       ),
       box(
         width = 12,
-        plotlyOutput(ns("speciesbarchart2"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("speciesbarchart2")), type = 6)
       ),
       box(
         title = tags$div(style = "font-size: 24px; font-weight: 600;", "Counts by Date and Organization"),
         width = 12,
-        dataTableOutput(ns("data"))
+        shinycssloaders::withSpinner(dataTableOutput(ns("data")), type = 6)
       )
     )
   )
@@ -88,6 +92,16 @@ mod_species_ui <- function(id) {
 mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palette) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Update the yearRange slider with real bounds from `ldat` once available.
+    # This prevents errors from evaluating `ldat` at UI creation time.
+    if (!is.null(ldat) && "Date" %in% colnames(ldat)) {
+      minYear <- tryCatch(as.numeric(format(min(ldat$Date, na.rm = TRUE), "%Y")), error = function(e) NA)
+      maxYear <- tryCatch(as.numeric(format(max(ldat$Date, na.rm = TRUE), "%Y")), error = function(e) NA)
+      if (!is.na(minYear) && !is.na(maxYear) && minYear <= maxYear) {
+        updateSliderInput(session, "yearRange", min = minYear, max = maxYear, value = c(minYear, maxYear))
+      }
+    }
 
     spdat <- reactive({
       # Use two separate species inputs
@@ -199,6 +213,8 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
       selected <- c(input$species1, input$species2)
       selected <- selected[selected != "None"]
       dat <- spyeardat()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
       # Remove/rename any existing 'Species' column before pivot_longer
       if ("Species" %in% colnames(dat)) {
         dat <- dat %>% rename(Species_existing = Species)
@@ -237,6 +253,8 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
 
     output$speciesbarchart <- renderPlotly({
       dat <- spyeardat2()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
       ggplotly(ggplot(dat, aes(x = Year, y = Count, fill = Species)) +
         geom_bar(stat = "identity", position = "dodge") +
         scale_fill_manual(values = c("#ff9b9b", "#a5d4f5")) +
@@ -267,6 +285,8 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
 
     output$speciesbarchart2 <- renderPlotly({
       dat <- spyeardat3()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
       ggplotly(ggplot(dat, aes(x = Year, y = round(Count, digits = 0), fill = Species)) +
         geom_bar(stat = "identity", position = "dodge") +
         scale_fill_manual(values = c("#ff9b9b", "#a5d4f5")) +
@@ -330,7 +350,9 @@ mod_species_server <- function(id, ldat, sdat, speciesl, pwpalette, color_palett
 
     output$data <- DT::renderDataTable({
       # allow HTML in the Organization column (we insert <br/> for multi-org rows)
-      DT::datatable(dcsdat(), escape = FALSE, options = list(pageLength = 25))
+      datatable <- dcsdat()
+      req(datatable)
+      DT::datatable(datatable, escape = FALSE, options = list(pageLength = 25))
     })
   })
 }

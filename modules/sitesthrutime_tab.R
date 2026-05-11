@@ -10,6 +10,7 @@ library(htmlwidgets)
 library(leaflet)
 library(tidyr)
 library(forcats)
+library(shinycssloaders)
 
 # Suppress warnings for unbound global variables
 globalVariables(c(
@@ -29,7 +30,7 @@ mod_sitesthrutime_ui <- function(id) {
           column(
             width = 9,
             title = "Site Map",
-            leafletOutput(ns("site_map"), height = "700px")
+            shinycssloaders::withSpinner(leafletOutput(ns("site_map"), height = "700px"), type = 6)
           ),
           column(
             width = 3,
@@ -50,15 +51,15 @@ mod_sitesthrutime_ui <- function(id) {
       ),
       box(
         width = 12,
-        plotlyOutput(ns("site_trends"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("site_trends")), type = 6)
       ),
       box(
         width = 12,
-        plotlyOutput(ns("native_non_native_trends"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("native_non_native_trends")), type = 6)
       ),
       box(
         width = 12,
-        plotlyOutput(ns("hsibi_trends"))
+        shinycssloaders::withSpinner(plotlyOutput(ns("hsibi_trends")), type = 6)
       ),
       box(
         width = 12,
@@ -66,10 +67,11 @@ mod_sitesthrutime_ui <- function(id) {
         fluidRow(
           column(
             width = 2,
+            # Use a safe default here; actual choices will be populated in server
             selectInput(
               inputId = ns("yearselect"),
               label = "Select a year:",
-              choices = c("All", sort(as.character(unique(ldat$Year)), decreasing = TRUE))
+              choices = c("All")
             )
           ),
           column(
@@ -86,7 +88,7 @@ mod_sitesthrutime_ui <- function(id) {
         fluidRow(
           column(
             width = 12,
-            dataTableOutput(ns("site_data"))
+            shinycssloaders::withSpinner(dataTableOutput(ns("site_data")), type = 6)
           )
         ),
         fluidRow(
@@ -105,6 +107,23 @@ mod_sitesthrutime_ui <- function(id) {
 mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Populate inputs that referenced `sdat`/`ldat` in the UI to avoid
+    # evaluating those data frames during UI construction.
+    # Update stream choices from `sdat` if available
+    if (!is.null(sdat) && "Stream" %in% colnames(sdat)) {
+      stream_choices <- tryCatch(as.character(sort(unique(sdat$Stream))), error = function(e) character(0))
+      if (length(stream_choices) > 0) {
+        updateSelectInput(session, "stream_a", choices = c("All", stream_choices), selected = "All")
+      }
+    }
+    # Update year choices from `ldat` if available
+    if (!is.null(ldat) && "Year" %in% colnames(ldat)) {
+      year_choices <- tryCatch(sort(as.character(unique(ldat$Year)), decreasing = TRUE), error = function(e) character(0))
+      if (length(year_choices) > 0) {
+        updateSelectInput(session, "yearselect", choices = c("All", year_choices), selected = "All")
+      }
+    }
 
     # Helper to parse organization entries like: c("Org A", "Org B")
     parse_orgs <- function(x) {
@@ -227,7 +246,10 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$site_trends <- renderPlotly({
-      ggplotly(ggplot(ldat_site_filtered(), aes(x = Date, y = Count, color = Species)) +
+      dat <- ldat_site_filtered()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
+      ggplotly(ggplot(dat, aes(x = Date, y = Count, color = Species)) +
           geom_point() +
           geom_line(aes(group = Species), se = FALSE) +
           labs(title = "Counts by Species Through Time",
@@ -255,7 +277,10 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$native_non_native_trends <- renderPlotly({
-      ggplotly(ggplot(ldat_site_filtered2(), aes(x = Date, y = Percent, color = Origin)) +
+      dat <- ldat_site_filtered2()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
+      ggplotly(ggplot(dat, aes(x = Date, y = Percent, color = Origin)) +
           geom_point() +
           geom_line(aes(group = Origin), se = FALSE) +
           labs(title = "Native vs Non-Native Percentages Through Time",
@@ -275,7 +300,10 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$hsibi_trends <- renderPlotly({
-      ggplotly(ggplot(hdat(), aes(x = Date, y = HSIBI, color = `Stream (from Site)`)) +
+      dat <- hdat()
+      req(dat)
+      if (nrow(dat) == 0) return(NULL)
+      ggplotly(ggplot(dat, aes(x = Date, y = HSIBI, color = `Stream (from Site)`)) +
           geom_point() +
           geom_smooth(aes(group = 1), color = "black") +
           scale_color_manual(values = pwpalette) +
@@ -400,7 +428,10 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$site_data <- DT::renderDataTable({
-      DT::datatable(ldat_year_org_filt(), options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE)
+      tbl <- ldat_year_org_filt()
+      req(tbl)
+      if (nrow(tbl) == 0) return(DT::datatable(tbl, options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE))
+      DT::datatable(tbl, options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE)
     })
 
     output$downloadData <- downloadHandler(filename = function() {

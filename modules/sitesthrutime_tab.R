@@ -1,316 +1,240 @@
-library(shiny)
-library(ggplot2)
-library(dplyr)
-library(stringr)
-library(plotly)
-library(shinydashboard)
-library(shinyBS)
-library(DT)
-library(htmlwidgets)
-library(leaflet)
-library(tidyr)
-library(forcats)
-library(shinycssloaders)
-
-# Suppress warnings for unbound global variables
-globalVariables(c(
-  "Site", "Stream", "Date", "HSIBI", "Species", "Count",
-  "Stream (from Site)", "Site (from Site)", "sdat", "ldat"
-))
-
 # Sites Through Time Tab Module
-mod_sitesthrutime_ui <- function(id) {
+mod_sitesthrutime_ui <- function(id, stream_choices) {
   ns <- NS(id)
   tagList(
     fluidRow(
       box(
         width = 12,
-        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Site Trends Over Time"),
+        title = tags$div(style = "font-size: 24px; font-weight: 600;",
+                         "Site Trends Over Time"),
         fluidRow(
           column(
             width = 9,
-            title = "Site Map",
-            shinycssloaders::withSpinner(leafletOutput(ns("site_map"), height = "700px"), type = 6)
+            shinycssloaders::withSpinner(
+              leafletOutput(ns("site_map"), height = "700px"), type = 6)
           ),
           column(
             width = 3,
-            title = "Select a stream",
             selectInput(
-              inputId = ns("stream_a"),
-              label = tags$div(style = "font-size: 16px;", "Select a stream:"),
-              choices = c("All", as.character(sort(unique(sdat$Stream)))),
+              inputId  = ns("stream_a"),
+              label    = tags$div(style = "font-size: 16px;",
+                                  "Select a stream:"),
+              choices  = c("All", stream_choices),
               selected = "All"
             )
           ),
           column(
             width = 3,
-            title = "Select a site",
             uiOutput(ns("site_a"))
           )
         )
       ),
+      box(width = 12,
+          shinycssloaders::withSpinner(
+            plotlyOutput(ns("site_trends")), type = 6)),
+      box(width = 12,
+          shinycssloaders::withSpinner(
+            plotlyOutput(ns("native_non_native_trends")), type = 6)),
+      box(width = 12,
+          shinycssloaders::withSpinner(
+            plotlyOutput(ns("hsibi_trends")), type = 6)),
       box(
         width = 12,
-        shinycssloaders::withSpinner(plotlyOutput(ns("site_trends")), type = 6)
-      ),
-      box(
-        width = 12,
-        shinycssloaders::withSpinner(plotlyOutput(ns("native_non_native_trends")), type = 6)
-      ),
-      box(
-        width = 12,
-        shinycssloaders::withSpinner(plotlyOutput(ns("hsibi_trends")), type = 6)
-      ),
-      box(
-        width = 12,
-        title = tags$div(style = "font-size: 24px; font-weight: 600;", "Site Data Table"),
+        title = tags$div(style = "font-size: 24px; font-weight: 600;",
+                         "Site Data Table"),
         fluidRow(
           column(
             width = 2,
-            # Use a safe default here; actual choices will be populated in server
-            selectInput(
-              inputId = ns("yearselect"),
-              label = "Select a year:",
-              choices = c("All")
-            )
+            # Safe default; server populates actual year choices
+            selectInput(ns("yearselect"), "Select a year:",
+                        choices = c("All"))
           ),
-          column(
-            width = 5,
-            title = "Select an organization:",
-            uiOutput(ns("organ_b"))
-          ),
-          column(
-            width = 5,
-            title = "Select a survey date:",
-            uiOutput(ns("l3"))
-          )
+          column(width = 5, uiOutput(ns("organ_b"))),
+          column(width = 5, uiOutput(ns("l3")))
         ),
         fluidRow(
           column(
             width = 12,
-            shinycssloaders::withSpinner(dataTableOutput(ns("site_data")), type = 6)
+            shinycssloaders::withSpinner(
+              dataTableOutput(ns("site_data")), type = 6)
           )
         ),
         fluidRow(
-          column(
-            width = 12,
-            downloadButton(ns("downloadData"), "Download Data")
-          )
+          column(width = 12,
+                 downloadButton(ns("downloadData"), "Download Data"))
         )
       )
     )
   )
 }
 
-# Update reactive expressions to handle missing or invalid inputs
-
-mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
+mod_sitesthrutime_server <- function(id, ldat, sdat,
+                                     color_palette, pwpalette) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Populate inputs that referenced `sdat`/`ldat` in the UI to avoid
-    # evaluating those data frames during UI construction.
-    # Update stream choices from `sdat` if available
-    if (!is.null(sdat) && "Stream" %in% colnames(sdat)) {
-      stream_choices <- tryCatch(as.character(sort(unique(sdat$Stream))), error = function(e) character(0))
-      if (length(stream_choices) > 0) {
-        updateSelectInput(session, "stream_a", choices = c("All", stream_choices), selected = "All")
-      }
-    }
-    # Update year choices from `ldat` if available
+    # Populate year choices from ldat
     if (!is.null(ldat) && "Year" %in% colnames(ldat)) {
-      year_choices <- tryCatch(sort(as.character(unique(ldat$Year)), decreasing = TRUE), error = function(e) character(0))
+      year_choices <- tryCatch(
+        sort(as.character(unique(ldat$Year)), decreasing = TRUE),
+        error = function(e) character(0))
       if (length(year_choices) > 0) {
-        updateSelectInput(session, "yearselect", choices = c("All", year_choices), selected = "All")
+        updateSelectInput(session, "yearselect",
+                          choices  = c("All", year_choices),
+                          selected = "All")
       }
     }
-
-    # Helper to parse organization entries like: c("Org A", "Org B")
-    parse_orgs <- function(x) {
-      if (is.na(x) || x == "" || is.null(x)) return(character(0))
-      x <- as.character(x)
-      # If it looks like an R vector, extract quoted strings
-      if (grepl('^\\s*c\\s*\\(', x)) {
-        matches <- regmatches(x, gregexpr('"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"', x, perl = TRUE))
-        if (length(matches) && length(matches[[1]]) > 0) {
-          clean <- gsub('^"|"$', '', matches[[1]])
-          return(trimws(clean))
-        }
-        # fallback: remove c(...) and quotes then split on commas
-        tmp <- gsub('^\\s*c\\s*\\(|\\)\\s*$', '', x)
-        tmp <- gsub('"', '', tmp)
-        parts <- unlist(strsplit(tmp, '\\s*,\\s*'))
-        parts <- trimws(parts)
-        parts[parts != ""]
-      } else {
-        # not an R vector: attempt comma split or return original string
-        parts <- unlist(strsplit(x, '\\s*,\\s*'))
-        parts <- gsub('^"|"$', '', parts)
-        parts <- trimws(parts)
-        parts[parts != ""]
-      }
-    }
-
-    # Debugging: Observe input values
-    observe({
-      print(paste("Selected stream:", input$stream_a))
-      print(paste("Selected site:", input$site_a))
-    })
 
     output$site_a <- renderUI({
-      # If stream is "All" (or not set) show all sites; otherwise show sites for the selected stream
-      site_choices <- if (is.null(input$stream_a) || input$stream_a == "All") {
-        as.character(unique(sort(sdat$Site)))
+      site_choices <- if (is.null(input$stream_a) ||
+                          input$stream_a == "All") {
+        as.character(sort(unique(sdat$Site)))
       } else {
-        as.character(unique(sort(sdat$Site[sdat$Stream == input$stream_a])))
+        as.character(sort(unique(
+          sdat$Site[sdat$Stream == input$stream_a])))
       }
-
       selectInput(
-        inputId = ns("site_a"),
-        label = tags$div(style = "font-size: 16px;", "Select a site:"),
-        choices = c("All", site_choices),
+        inputId  = ns("site_a"),
+        label    = tags$div(style = "font-size: 16px;",
+                            "Select a site:"),
+        choices  = c("All", site_choices),
         selected = "All"
       )
     })
 
     filtered_sdat <- reactive({
-      if (is.null(input$stream_a) || is.null(input$site_a)) {
-        return(sdat)
-      }
-      if (input$site_a == "All" && input$stream_a == "All") {
+      if (is.null(input$stream_a) || is.null(input$site_a)) return(sdat)
+      stream_all <- input$stream_a == "All"
+      site_all   <- input$site_a   == "All"
+      if (stream_all && site_all) {
         sdat
-      } else if (input$site_a != "All" && input$stream_a == "All") {
-        sdat %>%
-          filter(Site == input$site_a)
-      } else if (input$site_a == "All" && input$stream_a != "All") {
-        sdat %>%
-          filter(Stream == input$stream_a)
+      } else if (!site_all && stream_all) {
+        sdat %>% filter(Site == input$site_a)
+      } else if (site_all && !stream_all) {
+        sdat %>% filter(Stream == input$stream_a)
       } else {
-        sdat %>%
-          filter(Site == input$site_a, Stream == input$stream_a)
+        sdat %>% filter(Site == input$site_a,
+                        Stream == input$stream_a)
       }
-    })
-
-    site_map <- reactive({
-      leaflet() %>%
-        addProviderTiles("Esri.WorldImagery") %>%
-        addCircleMarkers(
-          data = filtered_sdat(),
-          lng = ~`Longitude Top`,
-          lat = ~`Latitude Top`,
-          color = ~color_palette(Stream),
-          popup = ~paste("Site: ", Site, "<br/>", "Stream: ", Stream, "<br/>", "Elevation (ft): ", `Elevation Bottom`, "<br/>"),
-          opacity = 0.8,
-          fillOpacity = 0.8
-        ) %>%
-        addLegend(
-          data = sdat,
-          position = "bottomright",
-          pal = color_palette,
-          values = ~Stream,
-          title = "Stream",
-          opacity = 0.8
-        )
     })
 
     output$site_map <- renderLeaflet({
-      site_map()
+      leaflet() %>%
+        addProviderTiles("Esri.WorldImagery") %>%
+        addCircleMarkers(
+          data        = filtered_sdat(),
+          lng         = ~`Longitude Top`,
+          lat         = ~`Latitude Top`,
+          color       = ~color_palette(Stream),
+          popup       = ~paste("Site:", Site,
+                               "<br/>Stream:", Stream,
+                               "<br/>Elevation (ft):", `Elevation Bottom`),
+          opacity     = 0.8,
+          fillOpacity = 0.8
+        ) %>%
+        addLegend(
+          data     = sdat,
+          position = "bottomright",
+          pal      = color_palette,
+          values   = ~Stream,
+          title    = "Stream",
+          opacity  = 0.8
+        )
     })
 
-    ldat_site2 <- reactive({
-      filtered_data <- ldat
-      if (input$stream_a != "All") {
-        filtered_data <- filtered_data %>%
-          filter(`Stream (from Site)` == input$stream_a)
+    ldat_site <- reactive({
+      dat <- ldat
+      if (!is.null(input$stream_a) && input$stream_a != "All") {
+        dat <- dat %>% filter(`Stream (from Site)` == input$stream_a)
       }
-      if (input$site_a != "All") {
-        filtered_data <- filtered_data %>%
-          filter(`Site (from Site)` == input$site_a)
+      if (!is.null(input$site_a) && input$site_a != "All") {
+        dat <- dat %>% filter(`Site (from Site)` == input$site_a)
       }
-
-      return(filtered_data)
+      dat
     })
 
-    ldat_site_filtered <- reactive({
-      data <- ldat_site2() %>%
-        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
-        pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
-                     names_to = "Species", values_to = "Count") %>%
+    # Long format: one row per species per survey (excludes totals)
+    ldat_site_long <- reactive({
+      data <- ldat_site() %>%
+        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`,
+               contains("(count)")) %>%
+        pivot_longer(
+          cols      = -c(Date, `Site (from Site)`, `Stream (from Site)`,
+                         HSIBI),
+          names_to  = "Species",
+          values_to = "Count"
+        ) %>%
         mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
-        filter(!is.na(Count) & Count > 0) %>%
-        filter(!Species %in% c("Total", "Native", "Non-native"))
-
-      data$`Site (from Site)` <- as.character(data$`Site (from Site)`)
+        filter(!is.na(Count) & Count > 0,
+               !Species %in% c("Total", "Native", "Non-native"))
+      data$`Site (from Site)`   <- as.character(data$`Site (from Site)`)
       data$`Stream (from Site)` <- as.character(data$`Stream (from Site)`)
-      return(data)
+      data
     })
 
     output$site_trends <- renderPlotly({
-      dat <- ldat_site_filtered()
-      req(dat)
-      if (nrow(dat) == 0) return(NULL)
-      ggplotly(ggplot(dat, aes(x = Date, y = Count, color = Species)) +
+      dat <- ldat_site_long()
+      req(nrow(dat) > 0)
+      ggplotly(
+        ggplot(dat, aes(x = Date, y = Count, color = Species)) +
           geom_point() +
-          geom_line(aes(group = Species), se = FALSE) +
+          geom_line(aes(group = Species)) +
           labs(title = "Counts by Species Through Time",
-               x = "Date",
-               y = "Count",
-               color = "Species") +
+               x = "Date", y = "Count", color = "Species") +
           theme_classic() +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 
-    ldat_site_filtered2 <- reactive({
-      data <- ldat_site2() %>%
-        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
-        pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
-                     names_to = "Origin", values_to = "Count") %>%
-        mutate(Origin = gsub(" \\(count\\)", "", Origin)) %>%
-        filter(!is.na(Count) & Count > 0) %>%
-        filter(Origin %in% c("Native", "Non-native")) %>%
-        group_by(Date, `Site (from Site)`, `Stream (from Site)`, Origin) %>%
-        summarise(Count = sum(Count, na.rm = TRUE)) %>%
-        mutate(Percent = Count / sum(Count) * 100)
-
-      return(data)
-    })
-
     output$native_non_native_trends <- renderPlotly({
-      dat <- ldat_site_filtered2()
-      req(dat)
-      if (nrow(dat) == 0) return(NULL)
-      ggplotly(ggplot(dat, aes(x = Date, y = Percent, color = Origin)) +
+      dat <- ldat_site() %>%
+        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`,
+               contains("(count)")) %>%
+        pivot_longer(
+          cols      = -c(Date, `Site (from Site)`, `Stream (from Site)`,
+                         HSIBI),
+          names_to  = "Origin",
+          values_to = "Count"
+        ) %>%
+        mutate(Origin = gsub(" \\(count\\)", "", Origin)) %>%
+        filter(!is.na(Count) & Count > 0,
+               Origin %in% c("Native", "Non-native")) %>%
+        group_by(Date, `Site (from Site)`, `Stream (from Site)`,
+                 Origin) %>%
+        summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
+        mutate(Percent = Count / sum(Count) * 100)
+      req(nrow(dat) > 0)
+      ggplotly(
+        ggplot(dat, aes(x = Date, y = Percent, color = Origin)) +
           geom_point() +
-          geom_line(aes(group = Origin), se = FALSE) +
+          geom_line(aes(group = Origin)) +
           labs(title = "Native vs Non-Native Percentages Through Time",
-               x = "Date",
-               y = "Percentage of Total Count",
+               x = "Date", y = "Percentage of Total Count",
                color = "Origin") +
           theme_classic() +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
       )
     })
 
-    hdat <- reactive({
-      ldat_site_filtered() %>%
+    output$hsibi_trends <- renderPlotly({
+      dat <- ldat_site_long() %>%
         group_by(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`) %>%
         distinct() %>%
         mutate(`Stream (from Site)` = as.factor(`Stream (from Site)`))
-    })
-
-    output$hsibi_trends <- renderPlotly({
-      dat <- hdat()
-      req(dat)
-      if (nrow(dat) == 0) return(NULL)
-      ggplotly(ggplot(dat, aes(x = Date, y = HSIBI, color = `Stream (from Site)`)) +
+      req(nrow(dat) > 0)
+      title <- if (is.null(input$site_a) || input$site_a == "All") {
+        paste("HSIBI trends through time for",
+              input$stream_a, "stream(s)")
+      } else {
+        paste("HSIBI trends through time for", input$site_a)
+      }
+      ggplotly(
+        ggplot(dat, aes(x = Date, y = HSIBI,
+                        color = `Stream (from Site)`)) +
           geom_point() +
           geom_smooth(aes(group = 1), color = "black") +
           scale_color_manual(values = pwpalette) +
-          labs(title = if (input$site_a == "All") {paste("HSIBI trends through time for", input$stream_a, "stream(s)", sep = " ")}
-            else {paste("HSIBI trends through time for", input$site_a, sep = " ")},
-               x = "Date",
-               y = "HSIBI",
+          labs(title = title, x = "Date", y = "HSIBI",
                color = "Stream") +
           theme_classic() +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -318,132 +242,139 @@ mod_sitesthrutime_server <- function(id, ldat, sdat, color_palette) {
     })
 
     output$organ_b <- renderUI({
-      # Build list of individual organizations for the selected year (or all years)
-      rows <- if (is.null(input$yearselect) || input$yearselect == "All") {
+      rows <- if (is.null(input$yearselect) ||
+                  input$yearselect == "All") {
         ldat
       } else {
         ldat[ldat$Year == input$yearselect, ]
       }
-
-      # parse organization entries to build choices
-      raw_orgs <- as.character(rows$`Organization (from Organization)`)
-      parsed <- unlist(lapply(raw_orgs, parse_orgs))
-      choices <- sort(unique(parsed))
-
-      # determine most recent survey date among these rows and default-select that org
-      dates_raw <- as.character(rows$Date)
-      dates_parsed <- suppressWarnings(as.Date(dates_raw))
-      if (!all(is.na(dates_parsed))) {
-        latest_date <- max(dates_parsed, na.rm = TRUE)
-        recent_rows <- rows[which(dates_parsed == latest_date), ]
+      raw_orgs   <- as.character(rows$`Organization (from Organization)`)
+      parsed     <- sort(unique(unlist(lapply(raw_orgs, parse_orgs))))
+      dates_raw  <- as.character(rows$Date)
+      dates_pars <- suppressWarnings(as.Date(dates_raw))
+      if (!all(is.na(dates_pars))) {
+        recent_rows <- rows[which(dates_pars == max(dates_pars,
+                                                    na.rm = TRUE)), ]
       } else {
-        latest_date_str <- if (length(dates_raw) > 0) sort(dates_raw, decreasing = TRUE)[1] else NA_character_
-        recent_rows <- if (!is.na(latest_date_str)) rows[which(dates_raw == latest_date_str), ] else rows[0, ]
+        latest <- if (length(dates_raw) > 0) {
+          sort(dates_raw, decreasing = TRUE)[1]
+        } else {
+          NA_character_
+        }
+        recent_rows <- if (!is.na(latest)) {
+          rows[which(dates_raw == latest), ]
+        } else {
+          rows[0, ]
+        }
       }
-
-      recent_raw_orgs <- as.character(recent_rows$`Organization (from Organization)`)
-      recent_parsed <- unique(unlist(lapply(recent_raw_orgs, parse_orgs)))
-      selected_org <- if (length(recent_parsed) > 0) recent_parsed[1] else NULL
-
+      recent_parsed <- unique(unlist(lapply(
+        as.character(recent_rows$`Organization (from Organization)`),
+        parse_orgs)))
+      selected_org <- if (length(recent_parsed) > 0) {
+        recent_parsed[1]
+      } else {
+        NULL
+      }
       selectInput(
-        inputId = ns("organ_b"),
-        label = "Select an organization:",
-        choices = choices,
+        inputId  = ns("organ_b"),
+        label    = "Select an organization:",
+        choices  = parsed,
         selected = selected_org
       )
     })
 
     output$l3 <- renderUI({
-      # Build survey date choices for the selected year and organization
-      rows <- if (is.null(input$yearselect) || input$yearselect == "All") {
+      rows <- if (is.null(input$yearselect) ||
+                  input$yearselect == "All") {
         ldat
       } else {
         ldat[ldat$Year == input$yearselect, ]
       }
       if (!is.null(input$organ_b) && input$organ_b != "") {
-        keep <- vapply(as.character(rows$`Organization (from Organization)`), FUN.VALUE = logical(1), USE.NAMES = FALSE, FUN = function(x) {
-          input$organ_b %in% parse_orgs(as.character(x))
-        })
+        keep <- vapply(
+          as.character(rows$`Organization (from Organization)`),
+          FUN.VALUE = logical(1), USE.NAMES = FALSE,
+          FUN = function(x) input$organ_b %in% parse_orgs(x))
         rows <- rows[keep, ]
       }
-      # Order choices newest-first and default to the most recent survey date
       choices <- sort(as.character(unique(rows$Date)), decreasing = TRUE)
-      selected_choice <- if (length(choices) > 0) choices[1] else NULL
-
       selectInput(
-        inputId = ns("survey_date"),
-        label = "Select a survey date:",
-        choices = choices,
-        selected = selected_choice
+        inputId  = ns("survey_date"),
+        label    = "Select a survey date:",
+        choices  = choices,
+        selected = if (length(choices) > 0) choices[1] else NULL
       )
     })
 
     ldat_year_org <- reactive({
       data <- ldat
-      # filter by year if specified
       if (!is.null(input$yearselect) && input$yearselect != "All") {
         data <- data %>% filter(Year == input$yearselect)
       }
-      # filter by organization membership (handles c("A","B") style entries)
       if (!is.null(input$organ_b) && input$organ_b != "") {
-        keep <- vapply(as.character(data$`Organization (from Organization)`), FUN.VALUE = logical(1), USE.NAMES = FALSE, FUN = function(x) {
-          input$organ_b %in% parse_orgs(as.character(x))
-        })
+        keep <- vapply(
+          as.character(data$`Organization (from Organization)`),
+          FUN.VALUE = logical(1), USE.NAMES = FALSE,
+          FUN = function(x) input$organ_b %in% parse_orgs(x))
         data <- data[keep, ]
       }
-      # filter by survey date if specified
       if (!is.null(input$survey_date) && input$survey_date != "") {
         data <- data %>% filter(Date == input$survey_date)
       }
       data
     })
 
-    ldat_year_org_filt <- reactive({
+    ldat_table <- reactive({
       data <- ldat_year_org() %>%
-        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`, contains("(count)")) %>%
-        pivot_longer(cols = -c(Date, `Site (from Site)`, `Stream (from Site)`, HSIBI),
-                     names_to = "Species", values_to = "Count") %>%
-        mutate(Species = gsub(" \\(count\\)", "", Species)) %>%
-        mutate(Species = as.factor(Species)) %>%
+        select(Date, HSIBI, `Site (from Site)`, `Stream (from Site)`,
+               contains("(count)")) %>%
+        pivot_longer(
+          cols      = -c(Date, `Site (from Site)`, `Stream (from Site)`,
+                         HSIBI),
+          names_to  = "Species",
+          values_to = "Count"
+        ) %>%
+        mutate(
+          Species            = gsub(" \\(count\\)", "", Species),
+          Species            = as.factor(Species),
+          `Stream (from Site)` = as.factor(
+            as.character(`Stream (from Site)`)),
+          `Site (from Site)` = as.factor(
+            as.character(`Site (from Site)`)),
+          Species = fct_relevel(Species, "Native", "Non-native",
+                                "Total", after = Inf)
+        ) %>%
         filter(!is.na(Count) & Count > 0) %>%
-        mutate(`Stream (from Site)` = as.character(`Stream (from Site)`)) %>%
-        mutate(`Stream (from Site)` = as.factor(`Stream (from Site)`)) %>%
-        mutate(`Site (from Site)` = as.character(`Site (from Site)`)) %>%
-        mutate(`Site (from Site)` = as.factor(`Site (from Site)`)) %>%
-        # Place Native, Non-native, and Total at the bottom of the list
-        mutate(Species = fct_relevel(Species, "Native", "Non-native", "Total", after = Inf)) %>%
         arrange(`Stream (from Site)`, Species)
 
-      # Make a clean dataframe for the table
-      data <- data.frame(
-        Date = data$Date,
-        HSIBI = data$HSIBI,
-        Stream = data$`Stream (from Site)`,
-        Site = data$`Site (from Site)`,
+      data.frame(
+        Date    = data$Date,
+        HSIBI   = data$HSIBI,
+        Stream  = data$`Stream (from Site)`,
+        Site    = data$`Site (from Site)`,
         Species = data$Species,
-        Count = data$Count
+        Count   = data$Count
       )
-
-      return(data)
     })
 
     output$site_data <- DT::renderDataTable({
-      tbl <- ldat_year_org_filt()
-      req(tbl)
-      if (nrow(tbl) == 0) return(DT::datatable(tbl, options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE))
-      DT::datatable(tbl, options = list(pageLength = 10, autoWidth = TRUE), rownames = FALSE)
+      tbl <- ldat_table()
+      DT::datatable(tbl,
+                    options  = list(pageLength = 10, autoWidth = TRUE),
+                    rownames = FALSE)
     })
 
-    output$downloadData <- downloadHandler(filename = function() {
-      paste("site_data_",
-            unique(ldat_year_org_filt()$`Stream (from Site)`), "_",
-            unique(ldat_year_org_filt()$`Site (from Site)`), "_",
-            unique(ldat_year_org_filt()$Date),
-            ".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(as.data.frame(ldat_year_org_filt()),
-                file, row.names = FALSE, quote = FALSE)
-    })
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        paste0("site_data_",
+               paste(unique(ldat_table()$Stream), collapse = "-"), "_",
+               paste(unique(ldat_table()$Site),   collapse = "-"), "_",
+               paste(unique(ldat_table()$Date),   collapse = "-"),
+               ".csv")
+      },
+      content = function(file) {
+        write.csv(ldat_table(), file, row.names = FALSE, quote = FALSE)
+      }
+    )
   })
 }

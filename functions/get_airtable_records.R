@@ -1,7 +1,3 @@
-# Modification of Airtabler to actually make it work
-# and not the piece of trash it currently is
-# FIX YOUR FUCKING CODE BERGANT
-
 # Define the base airtable URL
 air_url <- "https://api.airtable.com/v0"
 

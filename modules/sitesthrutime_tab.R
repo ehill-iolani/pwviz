@@ -202,7 +202,9 @@ mod_sitesthrutime_server <- function(id, ldat, sdat,
         group_by(Date, `Site (from Site)`, `Stream (from Site)`,
                  Origin) %>%
         summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
-        mutate(Percent = Count / sum(Count) * 100)
+        group_by(Date, `Site (from Site)`, `Stream (from Site)`) %>%
+        mutate(Percent = Count / sum(Count) * 100) %>%
+        ungroup()
       req(nrow(dat) > 0)
       ggplotly(
         ggplot(dat, aes(x = Date, y = Percent, color = Origin)) +
